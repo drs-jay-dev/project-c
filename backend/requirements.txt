@@ -1,0 +1,9 @@
+Django==4.2.7
+djangorestframework==3.14.0
+psycopg2-binary==2.9.9
+python-dotenv==1.0.0
+requests==2.31.0
+django-cors-headers==4.3.0
+google-auth==2.23.4
+google-auth-oauthlib==1.1.0
+WooCommerce==3.0.0
