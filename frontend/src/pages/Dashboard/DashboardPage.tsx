@@ -1,23 +1,58 @@
 import React from 'react';
-import { Box, Grid, Paper, Typography } from '@mui/material';
+import { Box, Grid, Paper, Typography, Alert, CircularProgress } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { contactsApi, ordersApi } from '../../services/api';
 import { Contact, Order } from '../../types';
 
+interface ContactsResponse {
+    count: number;
+    next: string | null;
+    previous: string | null;
+    results: Contact[];
+}
+
+interface OrdersResponse {
+    count: number;
+    next: string | null;
+    previous: string | null;
+    results: Order[];
+}
+
 export const DashboardPage: React.FC = () => {
-    const { data: contacts } = useQuery<Contact[]>({
+    // Query for fetching contacts
+    const { data: contactsData, isLoading: isLoadingContacts, error: contactsError } = useQuery<ContactsResponse>({
         queryKey: ['contacts'],
-        queryFn: () => contactsApi.getAll().then((res) => res.data),
+        queryFn: async () => {
+            const response = await contactsApi.getAll();
+            return response.data;
+        },
     });
 
-    const { data: orders } = useQuery<Order[]>({
+    const { data: ordersData, isLoading: isLoadingOrders, error: ordersError } = useQuery<OrdersResponse>({
         queryKey: ['orders'],
-        queryFn: () => ordersApi.getAll().then((res) => res.data),
+        queryFn: async () => {
+            const response = await ordersApi.getAll();
+            return response.data;
+        },
     });
 
-    const totalContacts = contacts?.length || 0;
-    const totalOrders = orders?.length || 0;
-    const totalRevenue = orders?.reduce((sum, order) => sum + parseFloat(order.total_amount), 0) || 0;
+    if (isLoadingContacts || isLoadingOrders) {
+        return (
+            <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+                <CircularProgress />
+            </Box>
+        );
+    }
+
+    if (contactsError || ordersError) {
+        return <Alert severity="error">Error loading dashboard data</Alert>;
+    }
+
+    const contacts = contactsData?.results || [];
+    const totalContacts = contactsData?.count || 0;
+    const totalOrders = ordersData?.count || 0;
+    const orders = ordersData?.results || [];
+    const totalRevenue = orders.reduce((sum, order) => sum + parseFloat(order.total_amount), 0);
 
     return (
         <Box>
@@ -44,19 +79,25 @@ export const DashboardPage: React.FC = () => {
                 <Grid item xs={12}>
                     <Paper sx={{ p: 3 }}>
                         <Typography variant="h6" sx={{ mb: 2 }}>Recent Orders</Typography>
-                        {orders?.slice(0, 5).map((order) => (
-                            <Box key={order.id} sx={{ mb: 2, p: 2, bgcolor: 'background.default' }}>
-                                <Typography>
-                                    Order #{order.woo_order_id} - ${order.total_amount}
-                                </Typography>
-                                <Typography variant="body2" color="text.secondary">
-                                    {new Date(order.order_date).toLocaleDateString()}
-                                </Typography>
-                            </Box>
-                        ))}
+                        {orders.length > 0 ? (
+                            orders.slice(0, 5).map((order) => (
+                                <Box key={order.id} sx={{ mb: 2, p: 2, bgcolor: 'background.default' }}>
+                                    <Typography>
+                                        Order #{order.woo_order_id} - ${parseFloat(order.total_amount).toFixed(2)}
+                                    </Typography>
+                                    <Typography variant="body2" color="text.secondary">
+                                        {new Date(order.order_date).toLocaleDateString()}
+                                    </Typography>
+                                </Box>
+                            ))
+                        ) : (
+                            <Typography color="text.secondary">No orders yet</Typography>
+                        )}
                     </Paper>
                 </Grid>
             </Grid>
         </Box>
     );
 };
+
+export default DashboardPage;

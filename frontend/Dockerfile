@@ -9,15 +9,16 @@ RUN npm ci
 COPY . .
 RUN npm run build
 
-# Production stage
+# Development stage
 FROM node:18-alpine
 
 WORKDIR /app
 
-RUN npm install -g serve
+COPY package*.json ./
+RUN npm install
 
-COPY --from=build /app/build ./build
+COPY . .
 
 EXPOSE 3000
 
-CMD ["serve", "-s", "build", "-l", "3000"]
+CMD ["npm", "start"]

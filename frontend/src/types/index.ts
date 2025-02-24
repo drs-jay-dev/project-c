@@ -23,3 +23,11 @@ export interface Order {
     created_at: string;
     updated_at: string;
 }
+
+export interface SyncResponse {
+    stats: {
+        products: number;
+        customers: number;
+        orders: number;
+    };
+}
