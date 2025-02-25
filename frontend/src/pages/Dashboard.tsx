@@ -4,16 +4,18 @@ import SyncIcon from '@mui/icons-material/Sync';
 import { syncApi } from '../services/api';
 import SyncProgress from '../components/SyncProgress';
 
+interface SyncStatus {
+  status: 'success' | 'error' | 'in_progress' | 'idle' | 'stopped';
+  message: string;
+  progress?: {
+    current: number;
+    total: number;
+    type: 'products' | 'customers' | 'orders';
+  };
+}
+
 const Dashboard: React.FC = () => {
-  const [syncStatus, setSyncStatus] = useState<{
-    status: 'success' | 'error' | 'in_progress' | 'idle';
-    message: string;
-    progress?: {
-      current: number;
-      total: number;
-      type: 'products' | 'customers' | 'orders';
-    };
-  }>({
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>({
     status: 'idle',
     message: ''
   });
@@ -54,7 +56,7 @@ const Dashboard: React.FC = () => {
     } catch (error) {
       setSyncStatus({
         status: 'error',
-        message: 'Failed to sync with WooCommerce'
+        message: error instanceof Error ? error.message : 'An error occurred during sync'
       });
     }
   };

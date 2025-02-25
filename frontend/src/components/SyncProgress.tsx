@@ -7,7 +7,7 @@ interface SyncProgressProps {
     total: number;
     type: 'products' | 'customers' | 'orders';
   };
-  status: 'success' | 'error' | 'in_progress';
+  status: 'success' | 'error' | 'in_progress' | 'stopped';
   message: string;
 }
 
@@ -23,6 +23,8 @@ const SyncProgress: React.FC<SyncProgressProps> = ({ progress, status, message }
         return 'success';
       case 'error':
         return 'error';
+      case 'stopped':
+        return 'warning';
       default:
         return 'primary';
     }
@@ -49,39 +51,27 @@ const SyncProgress: React.FC<SyncProgressProps> = ({ progress, status, message }
             <Typography variant="subtitle1" color="primary" sx={{ fontWeight: 'medium' }}>
               Syncing {getSyncTypeLabel(progress.type)}
             </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {progress.current} of {progress.total}
+            </Typography>
           </Box>
         )}
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
           <Box sx={{ width: '100%', mr: 1 }}>
-            <LinearProgress 
-              variant="determinate" 
-              value={getProgressValue()} 
+            <LinearProgress
+              variant={status === 'in_progress' ? 'determinate' : 'determinate'}
+              value={status === 'in_progress' ? getProgressValue() : 100}
               color={getProgressColor()}
-              sx={{
-                height: 10,
-                borderRadius: 5,
-                '& .MuiLinearProgress-bar': {
-                  borderRadius: 5,
-                },
-              }}
             />
           </Box>
-          <Box sx={{ minWidth: 45 }}>
-            <Typography variant="body2" color="text.secondary">
-              {`${Math.round(getProgressValue())}%`}
-            </Typography>
-          </Box>
         </Box>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', px: 1 }}>
-          <Typography variant="body2" color="text.secondary">
-            {message}
-          </Typography>
-          {progress && (
-            <Typography variant="body2" color="text.secondary">
-              {`${progress.current} / ${progress.total} ${getSyncTypeLabel(progress.type)}`}
-            </Typography>
-          )}
-        </Box>
+        <Typography
+          variant="body2"
+          color={status === 'error' ? 'error' : 'text.secondary'}
+          sx={{ mt: 1 }}
+        >
+          {message}
+        </Typography>
       </Box>
     </Paper>
   );

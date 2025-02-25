@@ -289,15 +289,32 @@ export const OrdersPage: React.FC = () => {
                                         })}
                                     </TableCell>
                                     <TableCell>
-                                        <Stack>
-                                            <Typography>
+                                        <Stack spacing={0.5}>
+                                            <Typography variant="subtitle2">
                                                 {isContact(order.contact) 
                                                     ? `${order.contact.first_name} ${order.contact.last_name}`
                                                     : order.contact}
                                             </Typography>
-                                            <Typography variant="body2" color="text.secondary">
-                                                {isContact(order.contact) ? order.contact.email : ''}
-                                            </Typography>
+                                            {isContact(order.contact) && (
+                                                <>
+                                                    {order.contact.email && (
+                                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                                            <Mail fontSize="small" sx={{ color: 'text.secondary', fontSize: '1rem' }} />
+                                                            <Typography variant="body2" color="text.secondary">
+                                                                {order.contact.email}
+                                                            </Typography>
+                                                        </Box>
+                                                    )}
+                                                    {order.contact.phone && (
+                                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                                            <Phone fontSize="small" sx={{ color: 'text.secondary', fontSize: '1rem' }} />
+                                                            <Typography variant="body2" color="text.secondary">
+                                                                {order.contact.phone}
+                                                            </Typography>
+                                                        </Box>
+                                                    )}
+                                                </>
+                                            )}
                                         </Stack>
                                     </TableCell>
                                     <TableCell>${parseFloat(order.total_amount).toFixed(2)}</TableCell>
