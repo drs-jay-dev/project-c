@@ -59,21 +59,56 @@ api.interceptors.response.use(
 );
 
 export const contactsApi = {
-    getAll: async (page = 1, pageSize = 10, search = '', options?: { ordering?: string }) => {
-        const params = new URLSearchParams({
-            page: page.toString(),
-            page_size: pageSize.toString(),
-            ...(search && { search }),
-            ...(options?.ordering && { ordering: options.ordering }),
-        });
-        const response = await api.get<ContactsResponse>(`/contacts/?${params}`);
+    getAll: async (page = 1, pageSize = 10, search = '', options?: { ordering?: string, has_woo?: string, has_ghl?: string, has_crm?: boolean }) => {
+        let url = `/contacts/?page=${page}&page_size=${pageSize}`;
+        
+        if (search) {
+            url += `&search=${encodeURIComponent(search)}`;
+        }
+        
+        if (options?.ordering) {
+            url += `&ordering=${options.ordering}`;
+        }
+        
+        if (options?.has_woo) {
+            url += `&has_woo=${options.has_woo}`;
+        }
+        
+        if (options?.has_ghl) {
+            url += `&has_ghl=${options.has_ghl}`;
+        }
+        
+        if (options?.has_crm) {
+            url += `&has_woo=false&has_ghl=false`;
+        }
+        
+        const response = await api.get<ContactsResponse>(url);
         return response;
     },
-    getAllNoPagination: () => api.get<Contact[]>('/contacts/all/'),
-    getOne: (id: string) => api.get<Contact>(`/contacts/${id}/`),
-    create: (data: Partial<Contact>) => api.post<Contact>('/contacts/', data),
-    update: (id: string, data: Partial<Contact>) => api.put<Contact>(`/contacts/${id}/`, data),
-    delete: (id: string) => api.delete(`/contacts/${id}/`),
+    getAllNoPagination: async () => {
+        const response = await api.get<Contact[]>('/contacts/all/');
+        return response;
+    },
+    getOne: async (id: string) => {
+        const response = await api.get<Contact>(`/contacts/${id}/`);
+        return response;
+    },
+    create: async (data: Partial<Contact>) => {
+        const response = await api.post<Contact>('/contacts/', data);
+        return response;
+    },
+    update: async (id: string, data: Partial<Contact>) => {
+        const response = await api.put<Contact>(`/contacts/${id}/`, data);
+        return response;
+    },
+    delete: async (id: string) => {
+        const response = await api.delete(`/contacts/${id}/`);
+        return response;
+    },
+    getSourceCounts: async () => {
+        const response = await api.get('/contacts/source-counts/');
+        return response;
+    }
 };
 
 export const ordersApi = {
