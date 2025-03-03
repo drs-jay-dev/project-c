@@ -5,6 +5,7 @@ import uuid
 
 class Contact(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    woo_customer_id = models.IntegerField(unique=True, null=True, blank=True)
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100)
     email = models.EmailField(unique=True)
@@ -31,3 +32,25 @@ class Order(models.Model):
 
     def __str__(self):
         return f"Order {self.woo_order_id} - {self.contact}"
+
+class Product(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    woo_product_id = models.IntegerField(unique=True)
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    regular_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    sale_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    status = models.CharField(max_length=20)
+    stock_status = models.CharField(max_length=20)
+    stock_quantity = models.IntegerField(null=True, blank=True)
+    categories = models.JSONField(default=list)
+    images = models.JSONField(default=list)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        ordering = ['-created_at']

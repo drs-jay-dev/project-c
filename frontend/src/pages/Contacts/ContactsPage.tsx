@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Box,
     Typography,
@@ -20,6 +20,9 @@ import {
     TableSortLabel,
     Chip,
     Stack,
+    CircularProgress,
+    FormControlLabel,
+    Checkbox,
 } from '@mui/material';
 import { 
     Edit, 
@@ -36,28 +39,101 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { contactsApi, syncApi } from '../../services/api';
 import { Contact } from '../../types';
 
+interface ContactsResponse {
+    count: number;
+    next: string | null;
+    previous: string | null;
+    results: Contact[];
+}
+
 type Order = 'asc' | 'desc';
 type OrderBy = 'first_name' | 'last_name' | 'email' | 'phone';
 
 export const ContactsPage: React.FC = () => {
     const queryClient = useQueryClient();
-    const [page, setPage] = useState(0);
-    const [rowsPerPage, setRowsPerPage] = useState(10);
+    const [page, setPage] = useState(1);
+    const [pageSize, setPageSize] = useState(10);
     const [searchTerm, setSearchTerm] = useState('');
-    const [order, setOrder] = useState<Order>('asc');
+    const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(searchTerm);
     const [orderBy, setOrderBy] = useState<OrderBy>('last_name');
+    const [order, setOrder] = useState<Order>('asc');
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
     const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
-
-    const { data: contacts, isLoading, error } = useQuery<Contact[]>({
-        queryKey: ['contacts'],
-        queryFn: () => contactsApi.getAll().then((res) => res.data),
+    const [showWooOnly, setShowWooOnly] = useState(false);
+    const [showGhlOnly, setShowGhlOnly] = useState(false);
+    const [showCrmOnly, setShowCrmOnly] = useState(false);
+    const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+    const [sourceCounts, setSourceCounts] = useState({
+        woo: 0,
+        ghl: 0,
+        crm: 0,
+        total: 0
     });
 
+    // Debounce search term
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearchTerm(searchTerm);
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [searchTerm]);
+
+    // Fetch source counts
+    useEffect(() => {
+        const fetchSourceCounts = async () => {
+            try {
+                const response = await contactsApi.getSourceCounts();
+                if (response.status === 200) {
+                    const data = response.data;
+                    setSourceCounts({
+                        woo: data.woo || 0,
+                        ghl: data.ghl || 0,
+                        crm: data.crm_only || 0,
+                        total: data.total || 0
+                    });
+                }
+            } catch (error) {
+                console.error('Error fetching source counts:', error);
+            }
+        };
+        
+        fetchSourceCounts();
+    }, []);
+
+    const { data: contactsData, isLoading, error } = useQuery<ContactsResponse>({
+        queryKey: ['contacts', page, pageSize, debouncedSearchTerm, orderBy, order, showWooOnly, showGhlOnly, showCrmOnly],
+        queryFn: async () => {
+            const params: any = {
+                ordering: `${order === 'desc' ? '-' : ''}${orderBy}`,
+            };
+            
+            // Build filter parameters based on selected filters
+            // This approach allows for selecting multiple data sources
+            const hasWooParam = showWooOnly ? 'true' : undefined;
+            const hasGhlParam = showGhlOnly ? 'true' : undefined;
+            
+            // Only apply CRM-only filter if it's the only one selected
+            if (showCrmOnly && !showWooOnly && !showGhlOnly) {
+                params.has_woo = 'false';
+                params.has_ghl = 'false';
+            } else {
+                // Otherwise, apply individual filters
+                if (hasWooParam) params.has_woo = hasWooParam;
+                if (hasGhlParam) params.has_ghl = hasGhlParam;
+            }
+            
+            const response = await contactsApi.getAll(page, pageSize, debouncedSearchTerm, params);
+            return response.data;
+        },
+    });
+
+    const contacts = contactsData?.results || [];
+    const totalContacts = contactsData?.count || 0;
+
     const mutation = useMutation({
-        mutationFn: syncApi.syncWooCommerce,
+        mutationFn: () => syncApi.syncWooCommerce('customers'),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['contacts'] });
+            queryClient.invalidateQueries({ queryKey: ['contacts', page, pageSize, debouncedSearchTerm, orderBy, order, showWooOnly, showGhlOnly, showCrmOnly] });
         },
     });
 
@@ -68,12 +144,12 @@ export const ContactsPage: React.FC = () => {
     };
 
     const handleChangePage = (event: unknown, newPage: number) => {
-        setPage(newPage);
+        setPage(newPage + 1); // Convert 0-based to 1-based
     };
 
     const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
-        setRowsPerPage(parseInt(event.target.value, 10));
-        setPage(0);
+        setPageSize(parseInt(event.target.value, 10));
+        setPage(1);
     };
 
     const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, contact: Contact) => {
@@ -91,168 +167,298 @@ export const ContactsPage: React.FC = () => {
         console.log('Exporting to CSV...');
     };
 
-    const filteredContacts = contacts?.filter((contact) => {
-        const searchStr = searchTerm.toLowerCase();
+    const handleSearch = (event: React.ChangeEvent<HTMLInputElement>) => {
+        setSearchTerm(event.target.value);
+        setPage(1); // Reset to first page when searching
+    };
+
+    const handleFilterChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, checked } = event.target;
+        
+        if (name === 'showWooOnly') {
+            setShowWooOnly(checked);
+        } else if (name === 'showGhlOnly') {
+            setShowGhlOnly(checked);
+        } else if (name === 'showCrmOnly') {
+            setShowCrmOnly(checked);
+        } else if (name === 'showAll') {
+            // Reset all filters
+            setShowWooOnly(false);
+            setShowGhlOnly(false);
+            setShowCrmOnly(false);
+        }
+    };
+
+    if (isLoading) {
         return (
-            contact.first_name.toLowerCase().includes(searchStr) ||
-            contact.last_name.toLowerCase().includes(searchStr) ||
-            contact.email.toLowerCase().includes(searchStr) ||
-            contact.phone.toLowerCase().includes(searchStr)
+            <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+                <CircularProgress />
+            </Box>
         );
-    }) || [];
-
-    const sortedContacts = [...filteredContacts].sort((a, b) => {
-        const isAsc = order === 'asc';
-        if (orderBy === 'first_name') {
-            return isAsc ? a.first_name.localeCompare(b.first_name) : b.first_name.localeCompare(a.first_name);
-        }
-        if (orderBy === 'last_name') {
-            return isAsc ? a.last_name.localeCompare(b.last_name) : b.last_name.localeCompare(a.last_name);
-        }
-        return 0;
-    });
-
-    const paginatedContacts = sortedContacts.slice(
-        page * rowsPerPage,
-        page * rowsPerPage + rowsPerPage
-    );
+    }
 
     if (error) {
-        return <Alert severity="error">Error loading contacts. Please try again later.</Alert>;
+        return <Alert severity="error">Error loading contacts</Alert>;
     }
 
     return (
         <Box>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-                <Typography variant="h4">Contacts</Typography>
+            <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+                <Typography variant="h4">
+                    Contacts 
+                    <Typography component="span" variant="subtitle1" sx={{ ml: 2, color: 'text.secondary' }}>
+                        ({sourceCounts.total} total)
+                    </Typography>
+                </Typography>
                 <Stack direction="row" spacing={2}>
                     <Button
                         variant="contained"
+                        color="primary"
+                        onClick={() => mutation.mutate()}
+                        startIcon={<Sync />}
+                        disabled={mutation.isPending}
+                    >
+                        {mutation.isPending ? 'Syncing...' : 'Sync Contacts'}
+                    </Button>
+                    <Button
+                        variant="outlined"
                         startIcon={<FileDownload />}
                         onClick={handleExportCSV}
                     >
                         Export CSV
                     </Button>
-                    <Button
-                        variant="contained"
-                        startIcon={<Sync />}
-                        onClick={() => mutation.mutate()}
-                        disabled={mutation.status === 'pending'}
-                    >
-                        Sync WooCommerce
-                    </Button>
                 </Stack>
             </Box>
 
-            <Paper sx={{ mb: 2, p: 2 }}>
-                <Stack direction="row" spacing={2} alignItems="center">
-                    <TextField
-                        size="small"
-                        placeholder="Search contacts..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        InputProps={{
-                            startAdornment: <Search sx={{ color: 'text.secondary', mr: 1 }} />,
-                        }}
-                        sx={{ width: 300 }}
-                    />
-                    <Button
-                        startIcon={<FilterList />}
-                        size="small"
-                    >
-                        Filter
-                    </Button>
-                    {searchTerm && (
-                        <Chip 
-                            label={`Search: ${searchTerm}`}
-                            onDelete={() => setSearchTerm('')}
-                            size="small"
-                        />
-                    )}
-                </Stack>
-            </Paper>
+            {mutation.isSuccess && (
+                <Alert severity="success" sx={{ mb: 2 }}>
+                    Contacts synchronized successfully!
+                </Alert>
+            )}
 
-            <TableContainer component={Paper}>
-                <Table size="small">
-                    <TableHead>
-                        <TableRow>
-                            <TableCell>
-                                <TableSortLabel
-                                    active={orderBy === 'first_name'}
-                                    direction={orderBy === 'first_name' ? order : 'asc'}
-                                    onClick={() => handleSort('first_name')}
-                                >
-                                    First Name
-                                </TableSortLabel>
-                            </TableCell>
-                            <TableCell>
-                                <TableSortLabel
-                                    active={orderBy === 'last_name'}
-                                    direction={orderBy === 'last_name' ? order : 'asc'}
-                                    onClick={() => handleSort('last_name')}
-                                >
-                                    Last Name
-                                </TableSortLabel>
-                            </TableCell>
-                            <TableCell>Email</TableCell>
-                            <TableCell>Phone</TableCell>
-                            <TableCell>Billing Address</TableCell>
-                            <TableCell>Billing City</TableCell>
-                            <TableCell>Billing State</TableCell>
-                            <TableCell>Billing Zip</TableCell>
-                            <TableCell>Actions</TableCell>
-                        </TableRow>
-                    </TableHead>
-                    <TableBody>
-                        {isLoading ? (
+            {mutation.isError && (
+                <Alert severity="error" sx={{ mb: 2 }}>
+                    Error synchronizing contacts
+                </Alert>
+            )}
+
+            <Paper sx={{ mb: 2, p: 2 }}>
+                <Typography variant="subtitle1" sx={{ mb: 2 }}>
+                    Filter by Data Source 
+                    <Typography component="span" variant="caption" sx={{ ml: 1, color: 'text.secondary' }}>
+                        (Multiple sources can be selected)
+                    </Typography>
+                </Typography>
+                <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
+                    <FormControlLabel
+                        control={
+                            <Checkbox
+                                checked={showWooOnly}
+                                onChange={handleFilterChange}
+                                name="showWooOnly"
+                                color="primary"
+                            />
+                        }
+                        label={
+                            <Stack direction="row" spacing={1} alignItems="center">
+                                <Chip label="WooCommerce" size="small" color="primary" variant="outlined" />
+                                <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>{sourceCounts.woo}</Typography>
+                            </Stack>
+                        }
+                    />
+                    <FormControlLabel
+                        control={
+                            <Checkbox
+                                checked={showGhlOnly}
+                                onChange={handleFilterChange}
+                                name="showGhlOnly"
+                                color="secondary"
+                            />
+                        }
+                        label={
+                            <Stack direction="row" spacing={1} alignItems="center">
+                                <Chip label="GoHighLevel" size="small" color="secondary" variant="outlined" />
+                                <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>{sourceCounts.ghl}</Typography>
+                            </Stack>
+                        }
+                    />
+                    <FormControlLabel
+                        control={
+                            <Checkbox
+                                checked={showCrmOnly}
+                                onChange={handleFilterChange}
+                                name="showCrmOnly"
+                            />
+                        }
+                        label={
+                            <Stack direction="row" spacing={1} alignItems="center">
+                                <Chip label="CRM Only" size="small" color="default" variant="outlined" />
+                                <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>{sourceCounts.crm}</Typography>
+                            </Stack>
+                        }
+                    />
+                    <FormControlLabel
+                        control={
+                            <Checkbox
+                                checked={!showWooOnly && !showGhlOnly && !showCrmOnly}
+                                onChange={handleFilterChange}
+                                name="showAll"
+                            />
+                        }
+                        label={
+                            <Stack direction="row" spacing={1} alignItems="center">
+                                <Chip label="Show All Sources" size="small" color="default" variant="outlined" />
+                                <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>{sourceCounts.total}</Typography>
+                            </Stack>
+                        }
+                    />
+                </Stack>
+
+                <TextField
+                    fullWidth
+                    variant="outlined"
+                    placeholder="Search contacts..."
+                    value={searchTerm}
+                    onChange={handleSearch}
+                    InputProps={{
+                        startAdornment: <Search sx={{ color: 'text.secondary', mr: 1 }} />,
+                    }}
+                    sx={{ mb: 2 }}
+                />
+
+                <TableContainer>
+                    <Table>
+                        <TableHead>
                             <TableRow>
-                                <TableCell colSpan={9} align="center">Loading...</TableCell>
+                                <TableCell>
+                                    <TableSortLabel
+                                        active={orderBy === 'first_name'}
+                                        direction={orderBy === 'first_name' ? order : 'asc'}
+                                        onClick={() => handleSort('first_name')}
+                                    >
+                                        First Name
+                                    </TableSortLabel>
+                                </TableCell>
+                                <TableCell>
+                                    <TableSortLabel
+                                        active={orderBy === 'last_name'}
+                                        direction={orderBy === 'last_name' ? order : 'asc'}
+                                        onClick={() => handleSort('last_name')}
+                                    >
+                                        Last Name
+                                    </TableSortLabel>
+                                </TableCell>
+                                <TableCell>
+                                    <TableSortLabel
+                                        active={orderBy === 'email'}
+                                        direction={orderBy === 'email' ? order : 'asc'}
+                                        onClick={() => handleSort('email')}
+                                    >
+                                        Email
+                                    </TableSortLabel>
+                                </TableCell>
+                                <TableCell>
+                                    <TableSortLabel
+                                        active={orderBy === 'phone'}
+                                        direction={orderBy === 'phone' ? order : 'asc'}
+                                        onClick={() => handleSort('phone')}
+                                    >
+                                        Phone
+                                    </TableSortLabel>
+                                </TableCell>
+                                <TableCell>Address</TableCell>
+                                <TableCell>City</TableCell>
+                                <TableCell>State</TableCell>
+                                <TableCell>Postal Code</TableCell>
+                                <TableCell>Data Sources</TableCell>
+                                <TableCell>Actions</TableCell>
                             </TableRow>
-                        ) : paginatedContacts.length === 0 ? (
-                            <TableRow>
-                                <TableCell colSpan={9} align="center">No contacts found</TableCell>
-                            </TableRow>
-                        ) : (
-                            paginatedContacts.map((contact) => (
-                                <TableRow key={contact.id} hover>
+                        </TableHead>
+                        <TableBody>
+                            {(contacts || []).map((contact) => (
+                                <TableRow key={contact.id}>
                                     <TableCell>{contact.first_name}</TableCell>
                                     <TableCell>{contact.last_name}</TableCell>
-                                    <TableCell>{contact.email}</TableCell>
-                                    <TableCell>{contact.phone}</TableCell>
-                                    <TableCell>{contact.billing_address}</TableCell>
-                                    <TableCell>{contact.billing_city}</TableCell>
-                                    <TableCell>{contact.billing_state}</TableCell>
-                                    <TableCell>{contact.billing_postcode}</TableCell>
                                     <TableCell>
-                                        <Tooltip title="Edit">
-                                            <IconButton size="small">
-                                                <Edit fontSize="small" />
-                                            </IconButton>
-                                        </Tooltip>
-                                        <Tooltip title="More actions">
-                                            <IconButton 
+                                        <Stack direction="row" spacing={1} alignItems="center">
+                                            <Typography>{contact.email}</Typography>
+                                            <IconButton
                                                 size="small"
-                                                onClick={(e) => handleMenuOpen(e, contact)}
+                                                onClick={() => window.location.href = `mailto:${contact.email}`}
                                             >
-                                                <MoreVert fontSize="small" />
+                                                <Mail fontSize="small" />
                                             </IconButton>
-                                        </Tooltip>
+                                        </Stack>
+                                    </TableCell>
+                                    <TableCell>
+                                        {contact.phone && (
+                                            <Stack direction="row" spacing={1} alignItems="center">
+                                                <Typography>{contact.phone}</Typography>
+                                                <IconButton
+                                                    size="small"
+                                                    onClick={() => window.location.href = `tel:${contact.phone}`}
+                                                >
+                                                    <Phone fontSize="small" />
+                                                </IconButton>
+                                            </Stack>
+                                        )}
+                                    </TableCell>
+                                    <TableCell>{contact.billing_address || '-'}</TableCell>
+                                    <TableCell>{contact.billing_city || '-'}</TableCell>
+                                    <TableCell>{contact.billing_state || '-'}</TableCell>
+                                    <TableCell>{contact.billing_postcode || '-'}</TableCell>
+                                    <TableCell>
+                                        <Stack direction="row" spacing={1}>
+                                            {contact.has_woo && (
+                                                <Chip 
+                                                    label="WooCommerce" 
+                                                    size="small" 
+                                                    color="primary" 
+                                                    variant="outlined" 
+                                                />
+                                            )}
+                                            {contact.has_ghl && (
+                                                <Chip 
+                                                    label="GoHighLevel" 
+                                                    size="small" 
+                                                    color="secondary" 
+                                                    variant="outlined" 
+                                                />
+                                            )}
+                                            {!contact.has_woo && !contact.has_ghl && (
+                                                <Chip 
+                                                    label="CRM" 
+                                                    size="small" 
+                                                    color="default" 
+                                                    variant="outlined" 
+                                                />
+                                            )}
+                                        </Stack>
+                                    </TableCell>
+                                    <TableCell>
+                                        <IconButton
+                                            size="small"
+                                            onClick={(event) => handleMenuOpen(event, contact)}
+                                        >
+                                            <MoreVert />
+                                        </IconButton>
                                     </TableCell>
                                 </TableRow>
-                            ))
-                        )}
-                    </TableBody>
-                </Table>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </TableContainer>
+
                 <TablePagination
-                    rowsPerPageOptions={[5, 10, 25, 50]}
                     component="div"
-                    count={filteredContacts.length}
-                    rowsPerPage={rowsPerPage}
-                    page={page}
+                    count={totalContacts}
+                    page={page - 1} // Convert 1-based to 0-based for Material-UI
                     onPageChange={handleChangePage}
+                    rowsPerPage={pageSize}
                     onRowsPerPageChange={handleChangeRowsPerPage}
+                    rowsPerPageOptions={[10, 25, 50]}
                 />
-            </TableContainer>
+            </Paper>
 
             <Menu
                 anchorEl={anchorEl}
@@ -260,18 +466,14 @@ export const ContactsPage: React.FC = () => {
                 onClose={handleMenuClose}
             >
                 <MenuItem onClick={handleMenuClose}>
-                    <Mail sx={{ mr: 1 }} fontSize="small" />
-                    Send Email
+                    <Edit sx={{ mr: 1 }} /> Edit
                 </MenuItem>
                 <MenuItem onClick={handleMenuClose}>
-                    <Phone sx={{ mr: 1 }} fontSize="small" />
-                    Call Contact
-                </MenuItem>
-                <MenuItem onClick={handleMenuClose} sx={{ color: 'error.main' }}>
-                    <Delete sx={{ mr: 1 }} fontSize="small" />
-                    Delete Contact
+                    <Delete sx={{ mr: 1 }} /> Delete
                 </MenuItem>
             </Menu>
         </Box>
     );
 };
+
+export default ContactsPage;
