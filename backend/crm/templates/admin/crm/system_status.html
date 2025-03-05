@@ -1,0 +1,566 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block extrahead %}
+{{ block.super }}
+<style>
+    .system-status-container {
+        padding: 20px;
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+    
+    .status-section {
+        background-color: var(--body-bg);
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        margin-bottom: 20px;
+        overflow: hidden;
+    }
+    
+    .section-header {
+        background-color: var(--primary);
+        color: var(--header-link-color);
+        padding: 15px 20px;
+        font-size: 1.2em;
+        font-weight: 500;
+    }
+    
+    .section-content {
+        padding: 20px;
+    }
+    
+    .status-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 20px;
+    }
+    
+    .status-card {
+        background-color: var(--body-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 15px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+    }
+    
+    .status-card h3 {
+        margin-top: 0;
+        font-size: 1.1em;
+        color: var(--body-quiet-color);
+    }
+    
+    .status-value {
+        font-size: 2em;
+        font-weight: bold;
+        margin: 10px 0;
+        color: var(--body-fg);
+    }
+    
+    .status-label {
+        color: var(--body-quiet-color);
+        font-size: 0.9em;
+    }
+    
+    .token-status {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 0.8em;
+        font-weight: 500;
+    }
+    
+    .token-status-valid {
+        background-color: #e6f4ea;
+        color: #137333;
+    }
+    
+    .token-status-expiring {
+        background-color: #fef7e0;
+        color: #b06000;
+    }
+    
+    .token-status-expired {
+        background-color: #fce8e6;
+        color: #c5221f;
+    }
+    
+    .tokens-table, .sync-table, .logs-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    
+    .tokens-table th, .sync-table th, .logs-table th {
+        text-align: left;
+        padding: 10px;
+        border-bottom: 2px solid var(--border-color);
+        color: var(--body-quiet-color);
+    }
+    
+    .tokens-table td, .sync-table td, .logs-table td {
+        padding: 10px;
+        border-bottom: 1px solid var(--hairline-color);
+    }
+    
+    .tokens-table tr:hover, .sync-table tr:hover, .logs-table tr:hover {
+        background-color: var(--darkened-bg);
+    }
+    
+    .sync-status {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 0.8em;
+        font-weight: 500;
+    }
+    
+    .sync-status-running {
+        background-color: #e8f0fe;
+        color: #1a73e8;
+    }
+    
+    .sync-status-completed {
+        background-color: #e6f4ea;
+        color: #137333;
+    }
+    
+    .sync-status-failed {
+        background-color: #fce8e6;
+        color: #c5221f;
+    }
+    
+    .sync-status-cancelled {
+        background-color: #f1f3f4;
+        color: #5f6368;
+    }
+    
+    .refresh-button {
+        background-color: var(--primary);
+        color: var(--header-link-color);
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: 500;
+        margin-bottom: 20px;
+    }
+    
+    .refresh-button:hover {
+        background-color: var(--primary-dark);
+    }
+    
+    .chart-container {
+        height: 300px;
+        margin-bottom: 20px;
+    }
+    
+    .pie-chart-container {
+        display: flex;
+        align-items: center;
+        justify-content: space-around;
+    }
+    
+    .pie-chart {
+        width: 200px;
+        height: 200px;
+    }
+    
+    .pie-chart-legend {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .legend-color {
+        width: 16px;
+        height: 16px;
+        border-radius: 4px;
+    }
+    
+    .legend-label {
+        font-size: 0.9em;
+        color: var(--body-quiet-color);
+    }
+    
+    .legend-value {
+        font-weight: 500;
+        color: var(--body-fg);
+    }
+    
+    .breadcrumbs {
+        margin-bottom: 10px;
+        font-size: 0.9em;
+        color: var(--body-quiet-color);
+    }
+    
+    .breadcrumbs a {
+        color: var(--body-fg);
+        text-decoration: none;
+    }
+    
+    .breadcrumbs a:hover {
+        color: var(--primary);
+    }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="system-status-container">
+    <div class="breadcrumbs">
+        <a href="{% url 'admin:index' %}">Home</a>
+        &rsaquo; <a href="{% url 'sync_dashboard' %}">Sync Dashboard</a>
+        &rsaquo; <a href="{% url 'system_status' %}">System Status</a>
+    </div>
+    <h1>System Status Dashboard</h1>
+    
+    <div class="status-section">
+        <div class="section-header">Contact Statistics</div>
+        <div class="section-content">
+            <div class="status-cards">
+                <div class="status-card">
+                    <h3>Total Contacts</h3>
+                    <div class="status-value">{{ total_contacts }}</div>
+                    <div class="status-label">Contacts in database</div>
+                </div>
+                <div class="status-card">
+                    <h3>GoHighLevel Contacts</h3>
+                    <div class="status-value">{{ ghl_contacts }}</div>
+                    <div class="status-label">Contacts linked to GHL</div>
+                </div>
+                <div class="status-card">
+                    <h3>WooCommerce Contacts</h3>
+                    <div class="status-value">{{ woo_contacts }}</div>
+                    <div class="status-label">Contacts linked to WooCommerce</div>
+                </div>
+                <div class="status-card">
+                    <h3>Last GHL Sync</h3>
+                    <div class="status-value">{{ last_ghl_sync|date:"M d, Y" }}</div>
+                    <div class="status-label">{{ last_ghl_sync|time:"H:i" }}</div>
+                </div>
+                <div class="status-card">
+                    <h3>Last WooCommerce Sync</h3>
+                    <div class="status-value">{{ last_woo_sync|date:"M d, Y" }}</div>
+                    <div class="status-label">{{ last_woo_sync|time:"H:i" }}</div>
+                </div>
+            </div>
+            
+            <div class="pie-chart-container" style="margin-top: 30px;">
+                <div class="pie-chart">
+                    <canvas id="contactSourcesChart"></canvas>
+                </div>
+                <div class="pie-chart-legend">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #4285F4;"></div>
+                        <div class="legend-label">GoHighLevel Only:</div>
+                        <div class="legend-value">{{ ghl_only }}</div>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #34A853;"></div>
+                        <div class="legend-label">WooCommerce Only:</div>
+                        <div class="legend-value">{{ woo_only }}</div>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #FBBC05;"></div>
+                        <div class="legend-label">Both Sources:</div>
+                        <div class="legend-value">{{ both_sources }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="status-section">
+        <div class="section-header">Contact Details</div>
+        <div class="section-content">
+            <div class="status-cards">
+                <div class="status-card">
+                    <h3>Primary Source: GHL</h3>
+                    <div class="status-value">{{ primary_ghl }}</div>
+                    <div class="status-label">Contacts with GHL as primary</div>
+                </div>
+                <div class="status-card">
+                    <h3>Primary Source: WooCommerce</h3>
+                    <div class="status-value">{{ primary_woo }}</div>
+                    <div class="status-label">Contacts with WooCommerce as primary</div>
+                </div>
+                <div class="status-card">
+                    <h3>Primary Source: CRM</h3>
+                    <div class="status-value">{{ primary_crm }}</div>
+                    <div class="status-label">Contacts with CRM as primary</div>
+                </div>
+                <div class="status-card">
+                    <h3>New Contacts (24h)</h3>
+                    <div class="status-value">{{ contacts_last_24h }}</div>
+                    <div class="status-label">Contacts created in last 24 hours</div>
+                </div>
+                <div class="status-card">
+                    <h3>Updated Contacts (24h)</h3>
+                    <div class="status-value">{{ contacts_updated_24h }}</div>
+                    <div class="status-label">Contacts updated in last 24 hours</div>
+                </div>
+            </div>
+            
+            <div class="pie-chart-container" style="margin-top: 30px;">
+                <div class="pie-chart">
+                    <canvas id="primarySourceChart"></canvas>
+                </div>
+                <div class="pie-chart-legend">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #4285F4;"></div>
+                        <div class="legend-label">GoHighLevel Primary:</div>
+                        <div class="legend-value">{{ primary_ghl }}</div>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #34A853;"></div>
+                        <div class="legend-label">WooCommerce Primary:</div>
+                        <div class="legend-value">{{ primary_woo }}</div>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #EA4335;"></div>
+                        <div class="legend-label">CRM Primary:</div>
+                        <div class="legend-value">{{ primary_crm }}</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div style="margin-top: 30px;">
+                <h3>Recent Contacts</h3>
+                <table class="tokens-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Phone</th>
+                            <th>Primary Source</th>
+                            <th>Created</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for contact in recent_contacts %}
+                        <tr>
+                            <td>{{ contact.first_name }} {{ contact.last_name }}</td>
+                            <td>{{ contact.email|default:"--" }}</td>
+                            <td>{{ contact.phone|default:"--" }}</td>
+                            <td>{{ contact.primary_source|upper }}</td>
+                            <td>{{ contact.created_at|date:"M d, Y H:i" }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5">No contacts found.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <div class="status-section">
+        <div class="section-header">OAuth Tokens</div>
+        <div class="section-content">
+            <table class="tokens-table">
+                <thead>
+                    <tr>
+                        <th>Location</th>
+                        <th>Status</th>
+                        <th>Expires At</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for token in tokens %}
+                    <tr>
+                        <td>{{ token.location_name }}</td>
+                        <td>
+                            <span class="token-status {% if token.status == 'Valid' %}token-status-valid{% elif token.status == 'Expiring Soon' %}token-status-expiring{% else %}token-status-expired{% endif %}">
+                                {{ token.status }}
+                            </span>
+                        </td>
+                        <td>{{ token.expires_at|date:"M d, Y H:i" }}</td>
+                        <td>
+                            <a href="{% url 'ghl_oauth_refresh' token_id=token.id %}" class="button">Refresh Token</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4">No OAuth tokens found. <a href="{% url 'ghl_oauth_authorize' %}">Connect GoHighLevel</a></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <div class="status-section">
+        <div class="section-header">Recent Sync Operations</div>
+        <div class="section-content">
+            <table class="sync-table">
+                <thead>
+                    <tr>
+                        <th>Sync Type</th>
+                        <th>Status</th>
+                        <th>Started</th>
+                        <th>Progress</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for sync in sync_states %}
+                    <tr>
+                        <td>{{ sync.sync_type }}</td>
+                        <td>
+                            <span class="sync-status {% if sync.status == 'running' %}sync-status-running{% elif sync.status == 'completed' %}sync-status-completed{% elif sync.status == 'failed' %}sync-status-failed{% else %}sync-status-cancelled{% endif %}">
+                                {{ sync.status|title }}
+                            </span>
+                        </td>
+                        <td>{{ sync.start_time|date:"M d, Y H:i" }}</td>
+                        <td>
+                            {% if sync.total_items > 0 %}
+                            {{ sync.processed_items }} / {{ sync.total_items }} ({{ sync.processed_items|floatformat:0|default:0|stringformat:"s"|add:"0"|add:".0"|floatformat:1 }}%)
+                            {% else %}
+                            N/A
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{% url 'sync_detail_view' sync_id=sync.id %}" class="button">View Details</a>
+                            {% if sync.status == 'running' %}
+                            <a href="{% url 'cancel_sync' sync_id=sync.id %}" class="button" style="margin-left: 5px;">Cancel</a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5">No sync operations found. <a href="{% url 'sync_dashboard' %}">Start a new sync</a></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <div class="status-section">
+        <div class="section-header">Recent System Events</div>
+        <div class="section-content">
+            <table class="logs-table">
+                <thead>
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>Event</th>
+                        <th>Message</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in sync_logs %}
+                    <tr>
+                        <td>{{ log.timestamp|date:"M d, Y H:i:s" }}</td>
+                        <td>{{ log.event_type }}</td>
+                        <td>{{ log.message }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="3">No system logs found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Create the contact sources pie chart
+        const ctx = document.getElementById('contactSourcesChart').getContext('2d');
+        const contactSourcesChart = new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: ['GoHighLevel Only', 'WooCommerce Only', 'Both Sources'],
+                datasets: [{
+                    data: [{{ ghl_only }}, {{ woo_only }}, {{ both_sources }}],
+                    backgroundColor: [
+                        '#4285F4',
+                        '#34A853',
+                        '#FBBC05'
+                    ],
+                    borderColor: [
+                        '#ffffff',
+                        '#ffffff',
+                        '#ffffff'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.raw || 0;
+                                const total = context.dataset.data.reduce((acc, val) => acc + val, 0);
+                                const percentage = Math.round((value / total) * 100);
+                                return `${label}: ${value} (${percentage}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        
+        // Create the primary source pie chart
+        const primaryCtx = document.getElementById('primarySourceChart').getContext('2d');
+        const primarySourceChart = new Chart(primaryCtx, {
+            type: 'pie',
+            data: {
+                labels: ['GoHighLevel Primary', 'WooCommerce Primary', 'CRM Primary'],
+                datasets: [{
+                    data: [{{ primary_ghl }}, {{ primary_woo }}, {{ primary_crm }}],
+                    backgroundColor: [
+                        '#4285F4',
+                        '#34A853',
+                        '#EA4335'
+                    ],
+                    borderColor: [
+                        '#ffffff',
+                        '#ffffff',
+                        '#ffffff'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.raw || 0;
+                                const total = context.dataset.data.reduce((acc, val) => acc + val, 0);
+                                const percentage = Math.round((value / total) * 100);
+                                return `${label}: ${value} (${percentage}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}
