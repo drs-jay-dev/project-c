@@ -1,0 +1,374 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block title %}GoHighLevel Dashboard{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    .dashboard-container {
+        margin: 20px;
+    }
+    .card {
+        background-color: var(--body-bg);
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        margin-bottom: 24px;
+        padding: 24px;
+        transition: box-shadow 0.3s ease;
+    }
+    .card:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+    .card-title {
+        border-bottom: 1px solid var(--hairline-color);
+        color: var(--body-loud-color);
+        font-size: 18px;
+        font-weight: 600;
+        margin-bottom: 20px;
+        padding-bottom: 12px;
+    }
+    .token-info {
+        display: grid;
+        grid-template-columns: 1fr 2fr;
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+    .token-info dt {
+        color: var(--body-loud-color);
+        font-weight: 600;
+    }
+    .token-info dd {
+        margin-left: 0;
+    }
+    .button-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 20px;
+    }
+    .button {
+        background-color: var(--primary);
+        border: none;
+        border-radius: 4px;
+        color: var(--primary-fg);
+        cursor: pointer;
+        display: inline-block;
+        font-size: 14px;
+        font-weight: 500;
+        padding: 10px 16px;
+        text-decoration: none;
+        transition: background-color 0.2s ease, transform 0.1s ease;
+    }
+    .button:hover {
+        background-color: var(--secondary);
+        transform: translateY(-1px);
+    }
+    .button:active {
+        transform: translateY(0);
+    }
+    .button-primary {
+        background-color: var(--secondary);
+    }
+    .button-primary:hover {
+        background-color: var(--primary);
+    }
+    .button-warning {
+        background-color: #f0ad4e;
+    }
+    .button-warning:hover {
+        background-color: #ec971f;
+    }
+    .button-danger {
+        background-color: #d9534f;
+    }
+    .button-danger:hover {
+        background-color: #c9302c;
+    }
+    .status-badge {
+        border-radius: 4px;
+        display: inline-block;
+        font-size: 12px;
+        font-weight: bold;
+        padding: 4px 8px;
+    }
+    .status-active {
+        background-color: #5cb85c;
+        color: #fff;
+    }
+    .status-expired {
+        background-color: #d9534f;
+        color: #fff;
+    }
+    .log-table {
+        border-collapse: separate;
+        border-spacing: 0;
+        width: 100%;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+    .log-table th, .log-table td {
+        border: 1px solid var(--hairline-color);
+        padding: 10px 12px;
+        text-align: left;
+    }
+    .log-table th {
+        background-color: var(--primary);
+        color: var(--primary-fg);
+        font-weight: 600;
+    }
+    .log-table tr:nth-child(even) {
+        background-color: var(--hairline-color);
+    }
+    .log-table tr:hover {
+        background-color: var(--primary);
+        color: var(--primary-fg);
+    }
+    .log-table tr:hover a {
+        color: var(--primary-fg);
+    }
+    .grid-layout {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 24px;
+    }
+    .full-width {
+        grid-column: 1 / -1;
+    }
+    .token-card {
+        border-left: 4px solid;
+        padding-left: 20px;
+        margin-bottom: 16px;
+    }
+    .token-card.active {
+        border-left-color: #5cb85c;
+    }
+    .token-card.expired {
+        border-left-color: #d9534f;
+    }
+    .stats-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+    .stat-card {
+        background-color: var(--primary);
+        color: var(--primary-fg);
+        border-radius: 8px;
+        padding: 16px;
+        text-align: center;
+    }
+    .stat-value {
+        font-size: 32px;
+        font-weight: bold;
+        margin: 8px 0;
+    }
+    .stat-label {
+        font-size: 14px;
+        opacity: 0.9;
+    }
+    .info-box {
+        background-color: rgba(121, 174, 200, 0.1);
+        border-left: 4px solid var(--primary);
+        border-radius: 4px;
+        margin-bottom: 20px;
+        padding: 16px;
+    }
+    .info-box h3 {
+        color: var(--body-loud-color);
+        font-size: 16px;
+        margin-top: 0;
+        margin-bottom: 8px;
+    }
+    .info-box p {
+        margin: 0;
+    }
+    @media (max-width: 992px) {
+        .grid-layout {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+    &rsaquo; <a href="{% url 'admin:app_list' app_label='crm' %}">CRM</a>
+    &rsaquo; {% trans 'GoHighLevel Dashboard' %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <h1>GoHighLevel Integration Dashboard</h1>
+    
+    <div class="info-box">
+        <h3>About GoHighLevel Integration</h3>
+        <p>This dashboard provides tools to manage your GoHighLevel OAuth tokens and synchronize contacts between GoHighLevel and DoctorsStudio CRM. OAuth tokens expire every 24 hours and need to be refreshed regularly.</p>
+    </div>
+    
+    <div class="stats-container">
+        <div class="stat-card">
+            <div class="stat-label">Active Tokens</div>
+            <div class="stat-value">{{ tokens|length }}</div>
+            <div class="stat-label">Connected Locations</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Token Status</div>
+            <div class="stat-value">
+                {% with active_count=0 %}
+                    {% for token in tokens %}
+                        {% if not token.is_expired %}
+                            {% with active_count=active_count|add:1 %}{% endwith %}
+                        {% endif %}
+                    {% endfor %}
+                    {% if active_count > 0 %}
+                        <span style="color: #5cb85c;">✓</span>
+                    {% else %}
+                        <span style="color: #d9534f;">✗</span>
+                    {% endif %}
+                {% endwith %}
+            </div>
+            <div class="stat-label">System Health</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Last Sync</div>
+            <div class="stat-value">--</div>
+            <div class="stat-label">Contact Sync Status</div>
+        </div>
+    </div>
+    
+    <div class="grid-layout">
+        <div class="card">
+            <h2 class="card-title">OAuth Tokens</h2>
+            {% if tokens %}
+                {% for token in tokens %}
+                    <div class="token-card {% if token.is_expired %}expired{% else %}active{% endif %}">
+                        <div class="token-info">
+                            <dt>Location ID:</dt>
+                            <dd>{{ token.location_id }}</dd>
+                            
+                            <dt>Status:</dt>
+                            <dd>
+                                {% if token.is_expired %}
+                                    <span class="status-badge status-expired">Expired</span>
+                                {% else %}
+                                    <span class="status-badge status-active">Active</span>
+                                {% endif %}
+                            </dd>
+                            
+                            <dt>Expires At:</dt>
+                            <dd>{{ token.expires_at }}</dd>
+                            
+                            <dt>Created At:</dt>
+                            <dd>{{ token.created_at }}</dd>
+                            
+                            <dt>Last Updated:</dt>
+                            <dd>{{ token.updated_at }}</dd>
+                        </div>
+                        
+                        <div class="button-container">
+                            {% if token.is_expired %}
+                                <a href="{% url 'ghl_oauth_refresh' token_id=token.id %}" class="button button-warning">Refresh Token</a>
+                            {% else %}
+                                <a href="{% url 'ghl_oauth_refresh' token_id=token.id %}" class="button">Refresh Token</a>
+                            {% endif %}
+                            <a href="{% url 'admin:crm_oauth2token_change' token.id %}" class="button">View Details</a>
+                        </div>
+                    </div>
+                {% endfor %}
+                <div class="button-container">
+                    <a href="{% url 'ghl_oauth_authorize' %}" class="button button-primary">Connect New Location</a>
+                </div>
+            {% else %}
+                <p>No OAuth tokens found. You need to connect to GoHighLevel to use the integration features.</p>
+                <div class="button-container">
+                    <a href="{% url 'ghl_oauth_authorize' %}" class="button button-primary">Connect to GoHighLevel</a>
+                </div>
+            {% endif %}
+        </div>
+        
+        <div class="card">
+            <h2 class="card-title">Recent Token Requests</h2>
+            {% if logs %}
+                <table class="log-table">
+                    <thead>
+                        <tr>
+                            <th>Type</th>
+                            <th>Status</th>
+                            <th>Date</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in logs %}
+                            <tr>
+                                <td>{{ log.get_request_type_display }}</td>
+                                <td>
+                                    {% if log.status == 'success' %}
+                                        <span class="status-badge status-active">Success</span>
+                                    {% else %}
+                                        <span class="status-badge status-expired">Error</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ log.created_at }}</td>
+                                <td>
+                                    <a href="{% url 'admin:crm_tokenrequestlog_change' log.id %}" class="button">View Details</a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <div class="button-container">
+                    <a href="{% url 'admin:crm_tokenrequestlog_changelist' %}" class="button">View All Logs</a>
+                </div>
+            {% else %}
+                <p>No token request logs found.</p>
+            {% endif %}
+        </div>
+        
+        <div class="card full-width">
+            <h2 class="card-title">Contact Synchronization</h2>
+            <div class="info-box">
+                <h3>Contact Sync Information</h3>
+                <p>The contact synchronization process will fetch contacts from GoHighLevel and merge them with existing contacts in the CRM. The system follows a matching priority of ID → Phone → Email to identify duplicate contacts.</p>
+                <p>For advanced sync operations, including chunked sync, incremental sync, and sync monitoring, visit the <a href="{% url 'sync_dashboard' %}">Sync Dashboard</a>.</p>
+            </div>
+            <div class="button-container">
+                <a href="{% url 'sync_gohighlevel_data' %}" class="button button-primary">Sync Contacts Now</a>
+                <a href="{% url 'get_ghl_sync_status' %}" class="button">Check Sync Status</a>
+                <a href="{% url 'admin:crm_contact_changelist' %}" class="button">View All Contacts</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extrajs %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Apply theme-specific styles to elements
+        const isDarkMode = document.documentElement.getAttribute('data-theme') === 'dark';
+        const cards = document.querySelectorAll('.card');
+        
+        if (isDarkMode) {
+            cards.forEach(card => {
+                card.style.backgroundColor = 'var(--sidebar-bg)';
+            });
+        }
+        
+        // Add event listeners for buttons
+        const buttons = document.querySelectorAll('.button');
+        buttons.forEach(button => {
+            button.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-2px)';
+            });
+            button.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateY(0)';
+            });
+        });
+    });
+</script>
+{% endblock %}

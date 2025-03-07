@@ -1,0 +1,85 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block title %}{% trans 'Forbidden' %}{% endblock %}
+
+{% block bodyclass %}error-page{% endblock %}
+
+{% block breadcrumbs %}{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    .error-page {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+        padding: 0;
+        background-color: var(--body-bg);
+    }
+    
+    .error-container {
+        text-align: center;
+        padding: 40px;
+        max-width: 600px;
+        background-color: var(--body-bg);
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08);
+    }
+    
+    .error-code {
+        font-size: 120px;
+        font-weight: bold;
+        color: var(--message-warning-bg);
+        margin: 0;
+        line-height: 1;
+    }
+    
+    .error-title {
+        font-size: 24px;
+        color: var(--body-loud-color);
+        margin: 20px 0;
+    }
+    
+    .error-message {
+        font-size: 16px;
+        color: var(--body-quiet-color);
+        margin-bottom: 30px;
+    }
+    
+    .error-actions {
+        margin-top: 30px;
+    }
+    
+    .error-button {
+        display: inline-block;
+        padding: 10px 20px;
+        background-color: var(--primary);
+        color: var(--primary-fg);
+        border-radius: 4px;
+        text-decoration: none;
+        font-size: 14px;
+        transition: background-color 0.3s;
+    }
+    
+    .error-button:hover {
+        background-color: var(--secondary);
+        color: var(--primary-fg);
+    }
+</style>
+{% endblock %}
+
+{% block nav-sidebar %}{% endblock %}
+
+{% block content %}
+<div class="error-container">
+    <div class="error-code">403</div>
+    <h1 class="error-title">{% trans "Access Denied" %}</h1>
+    <p class="error-message">{% trans "You don't have permission to access this page." %}</p>
+    <div class="error-actions">
+        <a href="{% url 'admin:index' %}" class="error-button">{% trans "Return to Dashboard" %}</a>
+    </div>
+</div>
+{% endblock %}

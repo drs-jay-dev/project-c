@@ -1,0 +1,366 @@
+/* Theme variables */
+:root {
+    /* Default dark theme */
+    --primary-bg: #1e1e2e;
+    --secondary-bg: #2a2a3c;
+    --header-bg: #313244;
+    --sidebar-bg: #252536;
+    --text-color: #cdd6f4;
+    --link-color: #89b4fa;
+    --link-hover: #b4befe;
+    --button-bg: #45475a;
+    --button-hover: #585b70;
+    --border-color: #45475a;
+    --success-color: #a6e3a1;
+    --warning-color: #f9e2af;
+    --error-color: #f38ba8;
+    --accent-color: #cba6f7;
+}
+
+/* Light mode theme */
+html[data-theme="light"] {
+    --primary-bg: #f9f9f9;
+    --secondary-bg: #f2f2f2;
+    --header-bg: #e5e5e5;
+    --sidebar-bg: #d9d9d9;
+    --text-color: #333333;
+    --link-color: #337ab7;
+    --link-hover: #23527c;
+    --button-bg: #337ab7;
+    --button-hover: #23527c;
+    --border-color: #ddd;
+    --success-color: #dff0d8;
+    --warning-color: #f0ad4e;
+    --error-color: #d9534f;
+    --accent-color: #66CCCC;
+}
+
+/* Base styles */
+body {
+    background-color: var(--primary-bg);
+    color: var(--text-color);
+}
+
+/* Header */
+#header {
+    background-color: var(--header-bg);
+    color: var(--text-color);
+    border-bottom: 1px solid var(--border-color);
+}
+
+#branding h1 {
+    color: var(--text-color);
+}
+
+#branding h1 a:link, #branding h1 a:visited {
+    color: var(--text-color);
+}
+
+/* User tools and clock */
+#user-tools {
+    color: var(--text-color);
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+#clock-container {
+    background-color: var(--button-bg);
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-weight: bold;
+    margin-right: 10px;
+}
+
+#clock {
+    color: var(--accent-color);
+}
+
+/* Theme toggle button */
+.theme-toggle-btn {
+    background-color: var(--button-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 5px 10px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.3s;
+}
+
+.theme-toggle-btn:hover {
+    background-color: var(--button-hover);
+}
+
+#user-tools a:link, #user-tools a:visited {
+    color: var(--link-color);
+    border-bottom: 1px solid var(--link-color);
+}
+
+#user-tools a:hover {
+    color: var(--link-hover);
+    border-bottom-color: var(--link-hover);
+}
+
+/* Content */
+#content {
+    background-color: var(--primary-bg);
+}
+
+/* Sidebar */
+#content-related {
+    background-color: var(--sidebar-bg);
+    border-left: 1px solid var(--border-color);
+}
+
+/* Module styling */
+.module {
+    background-color: var(--secondary-bg);
+    border: 1px solid var(--border-color);
+    margin-bottom: 20px;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.module h2, .module caption {
+    background-color: var(--header-bg);
+    color: var(--text-color);
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+/* Links */
+a:link, a:visited {
+    color: var(--link-color);
+    text-decoration: none;
+}
+
+a:hover {
+    color: var(--link-hover);
+}
+
+/* Buttons */
+.button, input[type=submit], input[type=button], .submit-row input, a.button {
+    background-color: var(--button-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+
+.button:hover, input[type=submit]:hover, input[type=button]:hover, 
+.submit-row input:hover, a.button:hover {
+    background-color: var(--button-hover);
+}
+
+.button.default, input[type=submit].default, .submit-row input.default {
+    background-color: var(--accent-color);
+    color: var(--primary-bg);
+}
+
+.button.default:hover, input[type=submit].default:hover, .submit-row input.default:hover {
+    background-color: var(--link-hover);
+}
+
+/* Form elements */
+input, textarea, select, .form-row p, form .button {
+    background-color: var(--secondary-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+
+/* Tables */
+table {
+    border-color: var(--border-color);
+}
+
+thead th {
+    background-color: var(--header-bg);
+    color: var(--text-color);
+    border-bottom: 1px solid var(--border-color);
+}
+
+tr.row1 {
+    background-color: var(--primary-bg);
+}
+
+tr.row2 {
+    background-color: var(--secondary-bg);
+}
+
+/* Dashboard */
+.dashboard {
+    display: grid;
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.dashboard .module {
+    margin-bottom: 0;
+    height: 100%;
+}
+
+.dashboard-module-content {
+    padding: 10px;
+}
+
+/* Metrics row */
+.metrics-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 20px;
+    margin: 20px 0;
+}
+
+.metric-card {
+    background-color: var(--secondary-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 15px;
+    text-align: center;
+}
+
+.metric-label {
+    font-size: 14px;
+    margin-bottom: 8px;
+    color: var(--text-color);
+}
+
+.metric-value {
+    font-size: 24px;
+    font-weight: bold;
+    color: var(--accent-color);
+}
+
+/* Welcome message */
+.welcome-message {
+    background-color: var(--secondary-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.welcome-title {
+    color: var(--accent-color);
+    margin-top: 0;
+    margin-bottom: 10px;
+}
+
+/* Action lists */
+.actionlist {
+    padding: 0;
+    margin: 0;
+    list-style-type: none;
+}
+
+.actionlist li {
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.actionlist li:last-child {
+    border-bottom: none;
+}
+
+/* Media queries for responsive design */
+@media (max-width: 767px) {
+    .dashboard {
+        grid-template-columns: 1fr;
+    }
+    
+    .metrics-row {
+        grid-template-columns: 1fr;
+    }
+    
+    #content-related {
+        margin-left: 0;
+        width: 100%;
+    }
+}
+
+/* Fix for Django's default styles */
+.paginator {
+    background-color: var(--secondary-bg);
+    color: var(--text-color);
+    border-color: var(--border-color);
+}
+
+.object-tools a:link, .object-tools a:visited {
+    background-color: var(--button-bg);
+    color: var(--text-color);
+}
+
+.object-tools a:hover {
+    background-color: var(--button-hover);
+}
+
+/* Message styles */
+.messagelist li {
+    background-color: var(--secondary-bg);
+    border: 1px solid var(--border-color);
+}
+
+.messagelist li.success {
+    background-color: var(--success-color);
+    color: var(--primary-bg);
+}
+
+.messagelist li.warning {
+    background-color: var(--warning-color);
+    color: var(--primary-bg);
+}
+
+.messagelist li.error {
+    background-color: var(--error-color);
+    color: var(--primary-bg);
+}
+
+/* Fix for Django's breadcrumbs */
+div.breadcrumbs {
+    background-color: var(--header-bg);
+    color: var(--text-color);
+    border-bottom: 1px solid var(--border-color);
+}
+
+div.breadcrumbs a {
+    color: var(--link-color);
+}
+
+div.breadcrumbs a:hover {
+    color: var(--link-hover);
+}
+
+/* Fix for Django's calendar widget */
+.calendarbox, .clockbox {
+    background-color: var(--secondary-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+
+.calendar caption, .calendarbox h2 {
+    background-color: var(--header-bg);
+    color: var(--text-color);
+}
+
+.calendar td a {
+    background-color: var(--button-bg);
+    color: var(--text-color);
+}
+
+.calendar td a:hover, .timelist a:hover {
+    background-color: var(--button-hover);
+    color: var(--link-hover);
+}
+
+.calendar td.selected a {
+    background-color: var(--accent-color);
+    color: var(--primary-bg);
+}
+
+.calendar td.nonday {
+    background-color: var(--primary-bg);
+}
+
+.timelist a {
+    background-color: var(--button-bg);
+    color: var(--text-color);
+}

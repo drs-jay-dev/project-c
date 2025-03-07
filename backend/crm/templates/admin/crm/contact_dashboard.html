@@ -1,0 +1,252 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block extrahead %}
+{{ block.super }}
+<style>
+    .dashboard-container {
+        padding: 20px;
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+    
+    .dashboard-section {
+        background-color: var(--body-bg);
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        margin-bottom: 20px;
+        overflow: hidden;
+    }
+    
+    .section-header {
+        background-color: var(--primary);
+        color: var(--header-link-color);
+        padding: 15px 20px;
+        font-size: 1.2em;
+        font-weight: 500;
+    }
+    
+    .section-content {
+        padding: 20px;
+    }
+    
+    .dashboard-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 20px;
+    }
+    
+    .dashboard-card {
+        background-color: var(--body-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 15px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        text-align: center;
+    }
+    
+    .dashboard-card h3 {
+        margin-top: 0;
+        font-size: 1.1em;
+        color: var(--body-quiet-color);
+    }
+    
+    .dashboard-card .value {
+        font-size: 2em;
+        font-weight: bold;
+        margin: 10px 0;
+        color: var(--body-loud-color);
+    }
+    
+    .dashboard-card .description {
+        font-size: 0.9em;
+        color: var(--body-quiet-color);
+    }
+    
+    .logs-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    
+    .logs-table th, .logs-table td {
+        padding: 10px;
+        text-align: left;
+        border-bottom: 1px solid var(--hairline-color);
+    }
+    
+    .logs-table th {
+        background-color: var(--primary-light);
+        color: var(--body-loud-color);
+        font-weight: 500;
+    }
+    
+    .logs-table tr:hover {
+        background-color: var(--primary-light);
+    }
+    
+    .status-badge {
+        display: inline-block;
+        padding: 3px 8px;
+        border-radius: 12px;
+        font-size: 0.8em;
+        font-weight: 500;
+    }
+    
+    .status-success {
+        background-color: #d4edda;
+        color: #155724;
+    }
+    
+    .status-error {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+    
+    .status-warning {
+        background-color: #fff3cd;
+        color: #856404;
+    }
+    
+    .status-info {
+        background-color: #d1ecf1;
+        color: #0c5460;
+    }
+    
+    .status-in-progress {
+        background-color: #e2e3e5;
+        color: #383d41;
+    }
+    
+    .source-chart {
+        height: 250px;
+        margin-top: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <h1>Contact Dashboard</h1>
+    
+    <div class="dashboard-section">
+        <div class="section-header">Contact Statistics</div>
+        <div class="section-content">
+            <div class="dashboard-cards">
+                <div class="dashboard-card">
+                    <h3>Total Contacts</h3>
+                    <div class="value">{{ contact_count }}</div>
+                    <div class="description">All contacts in the system</div>
+                </div>
+                
+                <div class="dashboard-card">
+                    <h3>WooCommerce Contacts</h3>
+                    <div class="value">{{ woo_contacts }}</div>
+                    <div class="description">Contacts with WooCommerce data</div>
+                </div>
+                
+                <div class="dashboard-card">
+                    <h3>GoHighLevel Contacts</h3>
+                    <div class="value">{{ ghl_contacts }}</div>
+                    <div class="description">Contacts with GoHighLevel data</div>
+                </div>
+                
+                <div class="dashboard-card">
+                    <h3>Orders</h3>
+                    <div class="value">{{ order_count }}</div>
+                    <div class="description">Total orders in the system</div>
+                </div>
+                
+                <div class="dashboard-card">
+                    <h3>Products</h3>
+                    <div class="value">{{ product_count }}</div>
+                    <div class="description">Total products in the system</div>
+                </div>
+            </div>
+            
+            <div class="source-chart" id="sourceChart"></div>
+        </div>
+    </div>
+    
+    <div class="dashboard-section">
+        <div class="section-header">Recent System Events</div>
+        <div class="section-content">
+            <table class="logs-table">
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Type</th>
+                        <th>Message</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in recent_logs %}
+                    <tr>
+                        <td>{{ log.timestamp|date:"M d, Y H:i:s" }}</td>
+                        <td>{{ log.type }}</td>
+                        <td>{{ log.message }}</td>
+                        <td>
+                            <span class="status-badge status-{{ log.status }}">
+                                {{ log.status }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4">No system logs found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Create source distribution chart
+        const ctx = document.getElementById('sourceChart').getContext('2d');
+        
+        // Calculate the number of contacts with both sources
+        const totalContacts = {{ contact_count }};
+        const wooContacts = {{ woo_contacts }};
+        const ghlContacts = {{ ghl_contacts }};
+        const bothSources = wooContacts + ghlContacts - totalContacts > 0 ? 
+                           wooContacts + ghlContacts - totalContacts : 0;
+        const wooOnly = wooContacts - bothSources;
+        const ghlOnly = ghlContacts - bothSources;
+        const noSource = totalContacts - wooOnly - ghlOnly - bothSources;
+        
+        new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: ['WooCommerce Only', 'GoHighLevel Only', 'Both Sources', 'No External Source'],
+                datasets: [{
+                    data: [wooOnly, ghlOnly, bothSources, noSource],
+                    backgroundColor: [
+                        '#4e73df',
+                        '#1cc88a',
+                        '#f6c23e',
+                        '#e74a3b'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    },
+                    title: {
+                        display: true,
+                        text: 'Contact Source Distribution'
+                    }
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

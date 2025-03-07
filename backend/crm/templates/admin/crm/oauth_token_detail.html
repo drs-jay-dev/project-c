@@ -1,0 +1,399 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block title %}OAuth Token Details{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    .token-detail-container {
+        margin: 20px;
+    }
+    .token-card {
+        background-color: var(--body-bg);
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        margin-bottom: 24px;
+        padding: 24px;
+        transition: box-shadow 0.3s ease;
+    }
+    .token-card:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+    .token-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid var(--hairline-color);
+        margin-bottom: 20px;
+        padding-bottom: 12px;
+    }
+    .token-title {
+        color: var(--body-loud-color);
+        font-size: 20px;
+        font-weight: 600;
+        margin: 0;
+    }
+    .token-status {
+        border-radius: 4px;
+        display: inline-block;
+        font-size: 14px;
+        font-weight: bold;
+        padding: 6px 12px;
+    }
+    .status-active {
+        background-color: #5cb85c;
+        color: #fff;
+    }
+    .status-expired {
+        background-color: #d9534f;
+        color: #fff;
+    }
+    .token-details {
+        display: grid;
+        grid-template-columns: 1fr 2fr;
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+    .token-details dt {
+        color: var(--body-loud-color);
+        font-weight: 600;
+    }
+    .token-details dd {
+        margin-left: 0;
+        word-break: break-all;
+    }
+    .token-value {
+        background-color: var(--hairline-color);
+        border-radius: 4px;
+        font-family: monospace;
+        padding: 12px;
+        position: relative;
+        overflow-x: auto;
+    }
+    .copy-button {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        background-color: var(--primary);
+        border: none;
+        border-radius: 4px;
+        color: var(--primary-fg);
+        cursor: pointer;
+        font-size: 12px;
+        padding: 4px 8px;
+    }
+    .copy-button:hover {
+        background-color: var(--secondary);
+    }
+    .button-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 24px;
+    }
+    .button {
+        background-color: var(--primary);
+        border: none;
+        border-radius: 4px;
+        color: var(--primary-fg);
+        cursor: pointer;
+        display: inline-block;
+        font-size: 14px;
+        font-weight: 500;
+        padding: 10px 16px;
+        text-decoration: none;
+        transition: background-color 0.2s ease, transform 0.1s ease;
+    }
+    .button:hover {
+        background-color: var(--secondary);
+        transform: translateY(-1px);
+    }
+    .button:active {
+        transform: translateY(0);
+    }
+    .button-primary {
+        background-color: var(--secondary);
+    }
+    .button-primary:hover {
+        background-color: var(--primary);
+    }
+    .button-warning {
+        background-color: #f0ad4e;
+    }
+    .button-warning:hover {
+        background-color: #ec971f;
+    }
+    .button-danger {
+        background-color: #d9534f;
+    }
+    .button-danger:hover {
+        background-color: #c9302c;
+    }
+    .logs-section {
+        margin-top: 32px;
+    }
+    .logs-title {
+        color: var(--body-loud-color);
+        font-size: 18px;
+        font-weight: 600;
+        margin-bottom: 16px;
+    }
+    .log-table {
+        border-collapse: separate;
+        border-spacing: 0;
+        width: 100%;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+    .log-table th, .log-table td {
+        border: 1px solid var(--hairline-color);
+        padding: 10px 12px;
+        text-align: left;
+    }
+    .log-table th {
+        background-color: var(--primary);
+        color: var(--primary-fg);
+        font-weight: 600;
+    }
+    .log-table tr:nth-child(even) {
+        background-color: var(--hairline-color);
+    }
+    .log-table tr:hover {
+        background-color: var(--primary);
+        color: var(--primary-fg);
+    }
+    .log-table tr:hover a {
+        color: var(--primary-fg);
+    }
+    .info-box {
+        background-color: rgba(121, 174, 200, 0.1);
+        border-left: 4px solid var(--primary);
+        border-radius: 4px;
+        margin-bottom: 20px;
+        padding: 16px;
+    }
+    .info-box h3 {
+        color: var(--body-loud-color);
+        font-size: 16px;
+        margin-top: 0;
+        margin-bottom: 8px;
+    }
+    .info-box p {
+        margin: 0;
+    }
+    .countdown-container {
+        margin-top: 16px;
+        text-align: center;
+    }
+    .countdown {
+        font-size: 24px;
+        font-weight: bold;
+        color: var(--body-loud-color);
+    }
+    .countdown.warning {
+        color: #f0ad4e;
+    }
+    .countdown.danger {
+        color: #d9534f;
+    }
+    .countdown-label {
+        font-size: 14px;
+        margin-top: 4px;
+    }
+    @media (max-width: 768px) {
+        .token-details {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+    &rsaquo; <a href="{% url 'admin:app_list' app_label='crm' %}">CRM</a>
+    &rsaquo; <a href="{% url 'admin:ghl_dashboard' %}">GoHighLevel Dashboard</a>
+    &rsaquo; {% trans 'OAuth Token Details' %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="token-detail-container">
+    <div class="token-card">
+        <div class="token-header">
+            <h1 class="token-title">OAuth Token for {{ token.location_id }}</h1>
+            {% if token.is_expired %}
+                <span class="token-status status-expired">Expired</span>
+            {% else %}
+                <span class="token-status status-active">Active</span>
+            {% endif %}
+        </div>
+        
+        {% if token.is_expired %}
+            <div class="info-box">
+                <h3>Token Expired</h3>
+                <p>This token has expired and needs to be refreshed to continue accessing GoHighLevel services.</p>
+            </div>
+        {% else %}
+            <div class="countdown-container">
+                <div class="countdown" id="token-countdown" data-expires="{{ token.expires_at|date:'c' }}">--:--:--</div>
+                <div class="countdown-label">Time until token expiration</div>
+            </div>
+        {% endif %}
+        
+        <div class="token-details">
+            <dt>Location ID:</dt>
+            <dd>{{ token.location_id }}</dd>
+            
+            <dt>Created At:</dt>
+            <dd>{{ token.created_at }}</dd>
+            
+            <dt>Last Updated:</dt>
+            <dd>{{ token.updated_at }}</dd>
+            
+            <dt>Expires At:</dt>
+            <dd>{{ token.expires_at }}</dd>
+            
+            <dt>Access Token:</dt>
+            <dd>
+                <div class="token-value">
+                    {{ token.access_token }}
+                    <button class="copy-button" data-copy="{{ token.access_token }}">Copy</button>
+                </div>
+            </dd>
+            
+            <dt>Refresh Token:</dt>
+            <dd>
+                <div class="token-value">
+                    {{ token.refresh_token }}
+                    <button class="copy-button" data-copy="{{ token.refresh_token }}">Copy</button>
+                </div>
+            </dd>
+        </div>
+        
+        <div class="button-container">
+            {% if token.is_expired %}
+                <a href="{% url 'ghl_oauth_refresh' token_id=token.id %}" class="button button-warning">Refresh Token</a>
+            {% else %}
+                <a href="{% url 'ghl_oauth_refresh' token_id=token.id %}" class="button">Refresh Token</a>
+            {% endif %}
+            <a href="{% url 'admin:crm_oauth2token_change' token.id %}" class="button">Edit Token</a>
+            <a href="{% url 'admin:ghl_dashboard' %}" class="button">Back to Dashboard</a>
+        </div>
+    </div>
+    
+    <div class="logs-section">
+        <h2 class="logs-title">Recent Token Logs</h2>
+        {% if logs %}
+            <table class="log-table">
+                <thead>
+                    <tr>
+                        <th>Type</th>
+                        <th>Status</th>
+                        <th>Date</th>
+                        <th>Error Message</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in logs %}
+                        <tr>
+                            <td>{{ log.get_request_type_display }}</td>
+                            <td>
+                                {% if log.status == 'success' %}
+                                    <span class="status-badge status-active">Success</span>
+                                {% else %}
+                                    <span class="status-badge status-expired">Error</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ log.created_at }}</td>
+                            <td>{{ log.error_message|truncatechars:50 }}</td>
+                            <td>
+                                <a href="{% url 'admin:crm_tokenrequestlog_change' log.id %}" class="button">View Details</a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p>No logs found for this token.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extrajs %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Copy button functionality
+        document.querySelectorAll('.copy-button').forEach(button => {
+            button.addEventListener('click', function() {
+                const textToCopy = this.getAttribute('data-copy');
+                navigator.clipboard.writeText(textToCopy).then(() => {
+                    const originalText = this.textContent;
+                    this.textContent = 'Copied!';
+                    setTimeout(() => {
+                        this.textContent = originalText;
+                    }, 2000);
+                });
+            });
+        });
+        
+        // Token countdown timer
+        const countdownElement = document.getElementById('token-countdown');
+        if (countdownElement) {
+            const expiresAt = new Date(countdownElement.getAttribute('data-expires'));
+            
+            function updateCountdown() {
+                const now = new Date();
+                const diff = expiresAt - now;
+                
+                if (diff <= 0) {
+                    countdownElement.textContent = 'Expired';
+                    countdownElement.classList.add('danger');
+                    return;
+                }
+                
+                // Calculate hours, minutes, seconds
+                const hours = Math.floor(diff / (1000 * 60 * 60));
+                const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+                
+                // Format the time
+                const formattedTime = 
+                    String(hours).padStart(2, '0') + ':' +
+                    String(minutes).padStart(2, '0') + ':' +
+                    String(seconds).padStart(2, '0');
+                
+                countdownElement.textContent = formattedTime;
+                
+                // Add warning classes based on time remaining
+                if (diff < 1000 * 60 * 60) { // Less than 1 hour
+                    countdownElement.classList.add('danger');
+                    countdownElement.classList.remove('warning');
+                } else if (diff < 1000 * 60 * 60 * 3) { // Less than 3 hours
+                    countdownElement.classList.add('warning');
+                    countdownElement.classList.remove('danger');
+                } else {
+                    countdownElement.classList.remove('warning', 'danger');
+                }
+            }
+            
+            // Update immediately and then every second
+            updateCountdown();
+            setInterval(updateCountdown, 1000);
+        }
+        
+        // Apply theme-specific styles to elements
+        const isDarkMode = document.documentElement.getAttribute('data-theme') === 'dark';
+        const cards = document.querySelectorAll('.token-card');
+        
+        if (isDarkMode) {
+            cards.forEach(card => {
+                card.style.backgroundColor = 'var(--sidebar-bg)';
+            });
+        }
+    });
+</script>
+{% endblock %}

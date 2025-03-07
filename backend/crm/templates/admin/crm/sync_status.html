@@ -1,0 +1,298 @@
+{% extends "admin/base_site.html" %}
+
+{% block title %}{{ title }} | {{ site_title }}{% endblock %}
+
+{% block extrastyle %}
+<style>
+    .sync-card {
+        background-color: #fff;
+        border-radius: 4px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+        margin-bottom: 20px;
+        padding: 20px;
+    }
+    .sync-header {
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #eee;
+    }
+    .sync-content {
+        margin-bottom: 20px;
+    }
+    .sync-status {
+        padding: 15px;
+        border-radius: 4px;
+        margin-bottom: 20px;
+    }
+    .sync-status.success, .status-success {
+        background-color: #d4edda;
+        color: #155724;
+    }
+    .sync-status.error, .status-error {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+    .sync-status.in-progress, .status-in-progress {
+        background-color: #cce5ff;
+        color: #004085;
+    }
+    .sync-status.idle, .status-idle {
+        background-color: #f8f9fa;
+        color: #383d41;
+    }
+    .sync-status.stopping, .status-stopping {
+        background-color: #fff3cd;
+        color: #856404;
+    }
+    .progress {
+        height: 20px;
+        margin-bottom: 20px;
+        overflow: hidden;
+        background-color: #f5f5f5;
+        border-radius: 4px;
+        box-shadow: inset 0 1px 2px rgba(0,0,0,.1);
+    }
+    .progress-bar {
+        float: left;
+        height: 100%;
+        font-size: 12px;
+        line-height: 20px;
+        color: #fff;
+        text-align: center;
+        background-color: #79aec8;
+        box-shadow: inset 0 -1px 0 rgba(0,0,0,.15);
+    }
+    .details-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .details-table th {
+        text-align: left;
+        padding: 8px;
+        background-color: #f8f9fa;
+        border-bottom: 2px solid #dee2e6;
+    }
+    .details-table td {
+        padding: 8px;
+        border-top: 1px solid #dee2e6;
+    }
+    button.primary {
+        background: #79aec8;
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        padding: 10px 15px;
+        cursor: pointer;
+    }
+    button.secondary {
+        background: #f8f9fa;
+        border: 1px solid #ddd;
+        color: #444;
+        border-radius: 4px;
+        padding: 10px 15px;
+        cursor: pointer;
+        margin-left: 10px;
+    }
+    button.danger {
+        background: #dc3545;
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        padding: 10px 15px;
+        cursor: pointer;
+        margin-left: 10px;
+    }
+</style>
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">Home</a>
+    &rsaquo; <a href="{% url 'admin:app_list' app_label='crm' %}">CRM</a>
+    &rsaquo; {{ title }}
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="sync-card">
+    <div class="sync-header">
+        <h1>{{ title }}</h1>
+        <p>Current status of synchronization processes.</p>
+    </div>
+
+    <div class="sync-content">
+        <div class="sync-status status-{{ sync_status.status }}">
+            <h2>Status: <span id="statusText">{{ sync_status.status|title }}</span></h2>
+            <p id="statusMessage">{{ sync_status.message }}</p>
+            
+            {% if sync_status.status == 'in_progress' and sync_status.progress.total > 0 %}
+            <div class="progress">
+                <div class="progress-bar" id="progressBar" role="progressbar" 
+                     style="width: {{ sync_status.progress.current|divisibleby:sync_status.progress.total|yesno:'0,100' }}%;">
+                    <span id="progressText">
+                        {{ sync_status.progress.current }}/{{ sync_status.progress.total }}
+                        ({{ sync_status.progress.current|divisibleby:sync_status.progress.total|yesno:'0,100' }}%)
+                    </span>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <h3>Details</h3>
+        <table class="details-table">
+            <thead>
+                <tr>
+                    <th>Property</th>
+                    <th>Value</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Status</td>
+                    <td id="detailStatus">{{ sync_status.status }}</td>
+                </tr>
+                <tr>
+                    <td>Message</td>
+                    <td id="detailMessage">{{ sync_status.message }}</td>
+                </tr>
+                <tr>
+                    <td>Current Item Type</td>
+                    <td id="detailType">{{ sync_status.progress.type }}</td>
+                </tr>
+                <tr>
+                    <td>Progress</td>
+                    <td id="detailProgress">{{ sync_status.progress.current }}/{{ sync_status.progress.total }}</td>
+                </tr>
+                <tr>
+                    <td>Auto-stop flag</td>
+                    <td id="detailShouldStop">{{ sync_status.should_stop|yesno:"Yes,No" }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="sync-actions">
+        <button class="secondary" id="refreshStatus">Refresh Status</button>
+        {% if sync_status.status == 'in_progress' %}
+        <button class="danger" id="stopSync">Stop Synchronization</button>
+        {% endif %}
+        <button class="primary" id="syncProducts">Sync Products</button>
+        <button class="primary" id="syncCustomers">Sync Customers</button>
+        <button class="primary" id="syncOrders">Sync Orders</button>
+        <button class="secondary" id="backToAdmin">Back to Admin</button>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const refreshButton = document.getElementById('refreshStatus');
+        const stopButton = document.getElementById('stopSync');
+        const syncProductsButton = document.getElementById('syncProducts');
+        const syncCustomersButton = document.getElementById('syncCustomers');
+        const syncOrdersButton = document.getElementById('syncOrders');
+        const backButton = document.getElementById('backToAdmin');
+        
+        // Auto refresh status
+        let autoRefresh = setInterval(refreshStatus, 3000);
+        
+        refreshButton.addEventListener('click', function() {
+            refreshStatus();
+        });
+        
+        if (stopButton) {
+            stopButton.addEventListener('click', function() {
+                stopSync();
+            });
+        }
+        
+        syncProductsButton.addEventListener('click', function() {
+            window.location.href = "{% url 'sync_woocommerce_data' %}?type=products";
+        });
+        
+        syncCustomersButton.addEventListener('click', function() {
+            window.location.href = "{% url 'sync_woocommerce_data' %}?type=customers";
+        });
+        
+        syncOrdersButton.addEventListener('click', function() {
+            window.location.href = "{% url 'sync_woocommerce_data' %}?type=orders";
+        });
+        
+        backButton.addEventListener('click', function() {
+            window.location.href = "{% url 'admin:index' %}";
+        });
+        
+        function refreshStatus() {
+            fetch("{% url 'get_sync_status' %}")
+            .then(response => response.json())
+            .then(data => {
+                updateStatusDisplay(data);
+            })
+            .catch(error => {
+                console.error('Error fetching status:', error);
+            });
+        }
+        
+        function stopSync() {
+            fetch("{% url 'stop_sync' %}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Stop sync response:', data);
+                refreshStatus();
+            })
+            .catch(error => {
+                console.error('Error stopping sync:', error);
+            });
+        }
+        
+        function updateStatusDisplay(data) {
+            // Update status text
+            document.getElementById('statusText').textContent = data.status.charAt(0).toUpperCase() + data.status.slice(1);
+            document.getElementById('statusMessage').textContent = data.message;
+            
+            // Update status class
+            const statusElement = document.querySelector('.sync-status');
+            statusElement.className = `sync-status status-${data.status}`;
+            
+            // Update details
+            document.getElementById('detailStatus').textContent = data.status;
+            document.getElementById('detailMessage').textContent = data.message;
+            document.getElementById('detailType').textContent = data.progress.type;
+            document.getElementById('detailProgress').textContent = 
+                `${data.progress.current}/${data.progress.total}`;
+            document.getElementById('detailShouldStop').textContent = 
+                data.should_stop ? 'Yes' : 'No';
+                
+            // Show/hide stop button based on status
+            if (stopButton) {
+                if (data.status === 'in_progress') {
+                    stopButton.style.display = 'inline-block';
+                } else {
+                    stopButton.style.display = 'none';
+                }
+            }
+            
+            // Update progress bar if available
+            if (data.status === 'in_progress' && data.progress.total > 0) {
+                const progressBar = document.getElementById('progressBar');
+                if (progressBar) {
+                    const percent = Math.round((data.progress.current / data.progress.total) * 100);
+                    progressBar.style.width = `${percent}%`;
+                    document.getElementById('progressText').textContent = 
+                        `${data.progress.current}/${data.progress.total} (${percent}%)`;
+                }
+            }
+        }
+        
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', function() {
+            clearInterval(autoRefresh);
+        });
+    });
+</script>
+{% endblock %}

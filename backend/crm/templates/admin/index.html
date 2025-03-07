@@ -1,0 +1,43 @@
+{% extends "admin/index.html" %}
+{% load i18n static %}
+
+{% block sidebar %}
+{{ block.super }}
+<div class="module" style="margin-top: 20px;">
+    <h2>GoHighLevel Integration</h2>
+    <ul>
+        <li><a href="{% url 'ghl_dashboard' %}">GoHighLevel Dashboard</a></li>
+        <li><a href="{% url 'ghl_oauth_authorize' %}">Connect to GoHighLevel</a></li>
+        <li><a href="{% url 'sync_gohighlevel_data' %}">Sync GoHighLevel Contacts</a></li>
+    </ul>
+</div>
+
+<div class="module" style="margin-top: 20px;">
+    <h2>Sync Management</h2>
+    <ul>
+        <li><a href="{% url 'sync_dashboard' %}">Sync Dashboard</a></li>
+    </ul>
+</div>
+
+<div class="module">
+    <table>
+        <caption>
+            <a href="{% url 'sync_dashboard' %}" class="section">Sync Dashboard</a>
+        </caption>
+        <tr>
+            <th scope="row">
+                <a href="{% url 'sync_dashboard' %}">Sync Operations</a>
+            </th>
+            <td></td>
+            <td></td>
+        </tr>
+        <tr>
+            <th scope="row">
+                <a href="{% url 'system_status' %}">System Status</a>
+            </th>
+            <td></td>
+            <td></td>
+        </tr>
+    </table>
+</div>
+{% endblock %}

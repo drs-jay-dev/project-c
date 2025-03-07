@@ -823,13 +823,13 @@ def sync_dashboard(request):
             if expires_at < now:
                 is_expired = True
                 status = "Expired"
-            elif (expires_at - now).total_seconds() < 86400:  # Less than 24 hours
+            elif (expires_at - now).total_seconds() < 3600:  # Less than 1 hour
                 status = "Expiring Soon"
         
         token_data = {
             'id': token.id,
             'location_id': token.location_id,
-            'location_name': f"Location {token.location_id}",  # Use a placeholder since location_name doesn't exist
+            'location_name': token.location_name or f"Location {token.location_id}",
             'expires_at': expires_at,
             'is_expired': is_expired,
             'status': status
@@ -1076,13 +1076,13 @@ def system_status(request):
             if expires_at < now:
                 is_expired = True
                 status = "Expired"
-            elif (expires_at - now).total_seconds() < 86400:  # Less than 24 hours
+            elif (expires_at - now).total_seconds() < 3600:  # Less than 1 hour
                 status = "Expiring Soon"
         
         token_data = {
             'id': token.id,
             'location_id': token.location_id,
-            'location_name': f"Location {token.location_id}",  # Use a placeholder since location_name doesn't exist
+            'location_name': token.location_name or f"Location {token.location_id}",
             'expires_at': expires_at,
             'is_expired': is_expired,
             'status': status

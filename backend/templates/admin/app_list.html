@@ -1,0 +1,32 @@
+{% load i18n %}
+
+{% if app_list %}
+  <div class="app-list">
+    {% for app in app_list %}
+      <div class="app">
+        <h3>
+          {% if app.app_url %}
+            <a href="{{ app.app_url }}">{{ app.name }}</a>
+          {% else %}
+            {{ app.name }}
+          {% endif %}
+        </h3>
+        {% if app.models %}
+          <ul>
+            {% for model in app.models %}
+              <li>
+                {% if model.admin_url %}
+                  <a href="{{ model.admin_url }}">{{ model.name }}</a>
+                {% else %}
+                  {{ model.name }}
+                {% endif %}
+              </li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+      </div>
+    {% endfor %}
+  </div>
+{% else %}
+  <p>{% trans "You don't have permission to view or edit anything." %}</p>
+{% endif %}

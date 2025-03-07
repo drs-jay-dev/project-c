@@ -1,0 +1,64 @@
+{% extends "admin/index.html" %}
+{% load i18n %}
+
+{% block bodyclass %}{{ block.super }} app-{{ app_label }}{% endblock %}
+
+{% if not is_popup %}
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+<a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+&rsaquo;
+{% for app in app_list %}
+{{ app.name }}
+{% endfor %}
+</div>
+{% endblock %}
+{% endif %}
+
+{% block sidebar %}
+<div id="content-related">
+    <div class="module" id="custom-tools-module">
+        <h2>{% trans 'Integration Tools' %}</h2>
+        <ul>
+            <li><a href="{% url 'admin:ghl_dashboard' %}">GoHighLevel Dashboard</a></li>
+            <li><a href="{% url 'admin:system_status' %}">System Status</a></li>
+        </ul>
+    </div>
+    {{ block.super }}
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+{% for app in app_list %}
+    <div class="app-{{ app.app_label }} module{% if app.app_url %} {% endif %}">
+    <table>
+    <caption>
+        <a href="{{ app.app_url }}" class="section" title="{% blocktrans with name=app.name %}Models in the {{ name }} application{% endblocktrans %}">{{ app.name }}</a>
+    </caption>
+    {% for model in app.models %}
+        <tr class="model-{{ model.object_name|lower }}{% if model.perms.view %}{% else %} disabled{% endif %}">
+        {% if model.admin_url %}
+            <th scope="row"><a href="{{ model.admin_url }}"{% if model.perms.view %}{% else %} class="disabled"{% endif %}>{{ model.name }}</a></th>
+        {% else %}
+            <th scope="row">{{ model.name }}</th>
+        {% endif %}
+
+        {% if model.perms.add %}
+            <td><a href="{{ model.add_url }}" class="addlink">{% trans 'Add' %}</a></td>
+        {% else %}
+            <td>&nbsp;</td>
+        {% endif %}
+
+        {% if model.perms.view %}
+            <td><a href="{{ model.admin_url }}" class="viewlink">{% trans 'View' %}</a></td>
+        {% else %}
+            <td>&nbsp;</td>
+        {% endif %}
+        </tr>
+    {% endfor %}
+    </table>
+    </div>
+{% endfor %}
+</div>
+{% endblock %}

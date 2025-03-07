@@ -1,0 +1,109 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block extrastyle %}{{ block.super }}{% endblock %}
+
+{% block coltype %}colMS{% endblock %}
+
+{% block bodyclass %}{{ block.super }} dashboard{% endblock %}
+
+{% block breadcrumbs %}{% endblock %}
+
+{% block sidebar %}
+<div id="content-related">
+    <div class="module" id="custom-tools-module">
+        <h2>{% trans 'Quick Actions' %}</h2>
+        <ul>
+            <li><a href="{% url 'admin:ghl_dashboard' %}">📊 GoHighLevel Dashboard</a></li>
+            <li><a href="{% url 'admin:system_status' %}">🔍 System Status</a></li>
+            <li><a href="{% url 'sync_woocommerce_data' %}?type=customers">👥 Sync WooCommerce Customers</a></li>
+            <li><a href="{% url 'sync_woocommerce_data' %}?type=orders">🛒 Sync WooCommerce Orders</a></li>
+            <li><a href="{% url 'sync_gohighlevel_data' %}">👤 Sync GHL Contacts</a></li>
+        </ul>
+    </div>
+    <div class="module" id="recent-actions-module">
+        <h2>{% trans 'Recent Actions' %}</h2>
+        <h3>{% trans 'My Actions' %}</h3>
+        {% load log %}
+        {% get_admin_log 10 as admin_log for_user user %}
+        {% if not admin_log %}
+            <p class="no-data">{% trans 'None available' %}</p>
+        {% else %}
+            <ul class="actionlist">
+                {% for entry in admin_log %}
+                    <li class="{% if entry.is_addition %}addlink{% endif %}{% if entry.is_change %}changelink{% endif %}{% if entry.is_deletion %}deletelink{% endif %}">
+                        {% if entry.is_deletion or not entry.get_admin_url %}
+                            {{ entry.object_repr }}
+                        {% else %}
+                            <a href="{{ entry.get_admin_url }}">{{ entry.object_repr }}</a>
+                        {% endif %}
+                        <br>
+                        {% if entry.content_type %}
+                            <span class="mini quiet">{% filter capfirst %}{{ entry.content_type.name }}{% endfilter %}</span>
+                        {% else %}
+                            <span class="mini quiet">{% trans 'Unknown content' %}</span>
+                        {% endif %}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <div class="welcome-message">
+        <h2 class="welcome-title">Welcome to DoctorsStudio CRM</h2>
+        <p>Manage your contacts, orders, and integrations all in one place. Use the dashboard below to navigate through the system.</p>
+    </div>
+    
+    <div class="metrics-row">
+        <div class="metric-card">
+            <div class="metric-label">Total Contacts</div>
+            <div class="metric-value">{{ contact_count|default:"0" }}</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">Total Orders</div>
+            <div class="metric-value">{{ order_count|default:"0" }}</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">Last Sync</div>
+            <div class="metric-value">{{ last_sync|default:"Never" }}</div>
+        </div>
+    </div>
+    
+    <div class="dashboard">
+        {% for app in app_list %}
+            <div class="module">
+                <h2>{{ app.name }}</h2>
+                <div class="dashboard-module-content">
+                    {% if app.models %}
+                        <ul class="actionlist">
+                            {% for model in app.models %}
+                                <li>
+                                    {% if model.admin_url %}
+                                        <a href="{{ model.admin_url }}">{{ model.name }}</a>
+                                    {% else %}
+                                        {{ model.name }}
+                                    {% endif %}
+                                    
+                                    {% if model.add_url %}
+                                        <span class="add-link">
+                                            <a href="{{ model.add_url }}">{% trans 'Add' %}</a>
+                                        </span>
+                                    {% endif %}
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="no-data">{% trans 'No models available' %}</p>
+                    {% endif %}
+                </div>
+            </div>
+        {% empty %}
+            <p>{% trans "You don't have permission to view or edit anything." %}</p>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

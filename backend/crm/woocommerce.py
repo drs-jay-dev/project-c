@@ -43,11 +43,14 @@ def retry_on_error(max_retries=3, delay=1):
     return decorator
 
 class WooCommerceAPI:
-    def __init__(self, url=None, consumer_key=None, consumer_secret=None):
+    """Class to interact with the WooCommerce API."""
+    
+    def __init__(self, url=None, consumer_key=None, consumer_secret=None, timeout=30):
         # Use the base URL without /wp-json/wc/v3 as it's added by the API class
         base_url = "https://store.doctorsstudio.com"
         self.consumer_key = consumer_key or "ck_f2926020d6cc2df0f1186f642ba9fac9e949d4fd"
         self.consumer_secret = consumer_secret or "cs_4eb13078eb91058f4facd8870c46f3c6e7ca1745"
+        self.timeout = timeout
         
         logger.info(f"Initializing WooCommerce API with URL: {base_url}")
         
@@ -57,7 +60,7 @@ class WooCommerceAPI:
                 consumer_key=self.consumer_key,
                 consumer_secret=self.consumer_secret,
                 version="wc/v3",
-                timeout=30,
+                timeout=self.timeout,
                 verify_ssl=False  # For testing only
             )
             self._test_connection()
@@ -175,22 +178,73 @@ class WooCommerceAPI:
             return []
 
     @retry_on_error(max_retries=3)
-    def get_customers(self):
+    def get_customers(self, page=1, per_page=100):
         try:
-            logger.info("Fetching customers from WooCommerce")
-            response = self.wcapi.get("customers", params={"per_page": 100})
+            logger.info(f"Fetching customers from WooCommerce (page {page}, per_page {per_page})")
+            # Add role parameter to include both customers and members
+            response = self.wcapi.get("customers", params={"per_page": per_page, "page": page, "role": "all"})
             logger.info(f"Customers response status: {response.status_code}")
             logger.debug(f"Customers response: {response.text[:500]}")  # Log first 500 chars of response
+            
             if response.status_code == 200:
-                customers = response.json()
-                logger.info(f"Retrieved {len(customers)} customers")
-                return customers
+                # Get headers for pagination
+                total_items = int(response.headers.get('X-WP-Total', 0))
+                total_pages = int(response.headers.get('X-WP-TotalPages', 0))
+                
+                # Parse response data
+                try:
+                    data = response.json()
+                except Exception as e:
+                    logger.error(f"Failed to parse JSON response: {str(e)}")
+                    raise Exception("Invalid JSON response from WooCommerce API")
+                
+                if not isinstance(data, list):
+                    logger.error(f"Invalid response format. Expected list but got: {type(data)}")
+                    raise Exception("Invalid response format from WooCommerce API")
+                
+                logger.info(f"Retrieved {len(data)} customers. Total pages: {total_pages}, Total items: {total_items}")
+                
+                return {
+                    'data': data,
+                    'total': total_items,
+                    'total_pages': total_pages,
+                    'current_page': page
+                }
             else:
                 logger.error(f"Failed to get customers: {response.status_code} - {response.text}")
-                return []
+                return None
         except RequestException as e:
             logger.error(f"Network error getting customers: {str(e)}")
-            return []
+            raise
         except Exception as e:
             logger.error(f"Error getting customers: {str(e)}")
+            raise
+            
+    @retry_on_error(max_retries=3)
+    def get_all_customers(self, batch_size=100):
+        """
+        Get all customers using pagination.
+        """
+        try:
+            first_page = self.get_customers(page=1, per_page=batch_size)
+            if not first_page or 'total' not in first_page:
+                logger.error("Failed to get initial customer data")
+                return []
+                
+            all_customers = first_page['data']
+            processed = len(all_customers)
+            logger.info(f"Processing page 1/{first_page['total_pages']} - {processed}/{first_page['total']} customers (including all roles)")
+            
+            # Process remaining pages
+            for page in range(2, first_page['total_pages'] + 1):
+                result = self.get_customers(page=page, per_page=batch_size)
+                if result and result.get('data'):
+                    all_customers.extend(result['data'])
+                    processed = len(all_customers)
+                    logger.info(f"Processing page {page}/{first_page['total_pages']} - {processed}/{first_page['total']} customers (including all roles)")
+                    
+            return all_customers
+                    
+        except Exception as e:
+            logger.error(f"Error in get_all_customers: {str(e)}")
             return []

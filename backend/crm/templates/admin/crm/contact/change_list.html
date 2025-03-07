@@ -1,0 +1,11 @@
+{% extends "admin/change_list.html" %}
+{% load i18n admin_urls static admin_list %}
+
+{% block result_list %}
+    {% if cl.paginator and cl.result_count > cl.list_per_page %}
+    <div class="paginator-top">
+        {% pagination cl %}
+    </div>
+    {% endif %}
+    {{ block.super }}
+{% endblock %}

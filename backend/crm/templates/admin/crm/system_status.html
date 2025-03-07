@@ -3,6 +3,7 @@
 
 {% block extrahead %}
 {{ block.super }}
+<meta http-equiv="refresh" content="30">
 <style>
     .system-status-container {
         padding: 20px;
@@ -207,6 +208,13 @@
     .breadcrumbs a:hover {
         color: var(--primary);
     }
+    
+    .auto-refresh-info {
+        text-align: right;
+        margin-bottom: 10px;
+        font-size: 0.9em;
+        color: #666;
+    }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 {% endblock %}
@@ -218,6 +226,11 @@
         &rsaquo; <a href="{% url 'sync_dashboard' %}">Sync Dashboard</a>
         &rsaquo; <a href="{% url 'system_status' %}">System Status</a>
     </div>
+    
+    <div class="auto-refresh-info">
+        <span>Auto-refreshing every 30 seconds. Last refresh: <span id="last-refresh-time"></span></span>
+    </div>
+    
     <h1>System Status Dashboard</h1>
     
     <div class="status-section">
@@ -476,6 +489,9 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // Update last refresh time
+        updateLastRefreshTime();
+        
         // Create the contact sources pie chart
         const ctx = document.getElementById('contactSourcesChart').getContext('2d');
         const contactSourcesChart = new Chart(ctx, {
@@ -562,5 +578,15 @@
             }
         });
     });
+    
+    function updateLastRefreshTime() {
+        const lastRefreshTimeElement = document.getElementById('last-refresh-time');
+        const currentTime = new Date();
+        const hours = currentTime.getHours();
+        const minutes = currentTime.getMinutes();
+        const seconds = currentTime.getSeconds();
+        const formattedTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        lastRefreshTimeElement.textContent = formattedTime;
+    }
 </script>
 {% endblock %}

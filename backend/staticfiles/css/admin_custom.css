@@ -1,0 +1,108 @@
+/* DoctorsStudio CRM Admin - Enhanced Dashboard Layout */
+
+/* Responsive dashboard grid layout */
+.dashboard {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 16px;
+    margin: 20px 0;
+    width: 100%;
+}
+
+/* Ensure proper sizing at different breakpoints */
+@media (min-width: 768px) {
+    .dashboard {
+        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    }
+}
+
+@media (min-width: 1200px) {
+    .dashboard {
+        grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+    }
+}
+
+/* Improve module appearance */
+.dashboard .module {
+    margin-bottom: 0;
+    border-radius: 6px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Make headers more attractive */
+.dashboard .module h2 {
+    padding: 12px 15px;
+    font-size: 14px;
+    font-weight: 500;
+    margin: 0;
+}
+
+/* Improve content area */
+.dashboard .module .dashboard-module-content {
+    padding: 0;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Better list styling */
+.dashboard .module ul.actionlist {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    flex-grow: 1;
+}
+
+.dashboard .module ul.actionlist li {
+    padding: 10px 15px;
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+    margin: 0;
+    display: flex;
+    align-items: center;
+}
+
+.dashboard .module ul.actionlist li:last-child {
+    border-bottom: none;
+}
+
+/* Hover effects */
+.dashboard .module ul.actionlist li:hover {
+    background-color: rgba(0,0,0,0.02);
+}
+
+/* Link styling */
+.dashboard .module a {
+    color: #417690;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.dashboard .module a:hover {
+    color: #295570;
+}
+
+/* Empty state styling */
+.dashboard .module p.no-data {
+    padding: 15px;
+    color: #999;
+    font-style: italic;
+    margin: 0;
+}
+
+/* Fix for recent actions module */
+#recent-actions-module h2,
+#recent-actions-module h3 {
+    margin: 0;
+    padding: 12px 15px;
+    font-size: 14px;
+}
+
+#recent-actions-module h3 {
+    background-color: #f8f8f8;
+    border-top: 1px solid rgba(0,0,0,0.05);
+    font-weight: normal;
+}

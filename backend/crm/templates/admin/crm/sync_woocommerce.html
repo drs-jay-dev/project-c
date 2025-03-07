@@ -1,0 +1,281 @@
+{% extends "admin/base_site.html" %}
+
+{% block title %}{{ title }} | {{ site_title }}{% endblock %}
+
+{% block extrastyle %}
+<style>
+    .sync-card {
+        background-color: #fff;
+        border-radius: 4px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+        margin-bottom: 20px;
+        padding: 20px;
+    }
+    .sync-header {
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #eee;
+    }
+    .sync-actions {
+        margin-top: 20px;
+    }
+    .sync-status {
+        margin-top: 20px;
+        padding: 15px;
+        border-radius: 4px;
+        display: none;
+    }
+    .sync-status.success {
+        background-color: #d4edda;
+        color: #155724;
+    }
+    .sync-status.error {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+    .sync-status.info {
+        background-color: #cce5ff;
+        color: #004085;
+    }
+    .progress {
+        height: 20px;
+        margin-bottom: 20px;
+        overflow: hidden;
+        background-color: #f5f5f5;
+        border-radius: 4px;
+        box-shadow: inset 0 1px 2px rgba(0,0,0,.1);
+    }
+    .progress-bar {
+        float: left;
+        width: 0;
+        height: 100%;
+        font-size: 12px;
+        line-height: 20px;
+        color: #fff;
+        text-align: center;
+        background-color: #79aec8;
+        box-shadow: inset 0 -1px 0 rgba(0,0,0,.15);
+        transition: width .6s ease;
+    }
+    button.primary {
+        background: #79aec8;
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        padding: 10px 15px;
+        cursor: pointer;
+    }
+    button.secondary {
+        background: #f8f9fa;
+        border: 1px solid #ddd;
+        color: #444;
+        border-radius: 4px;
+        padding: 10px 15px;
+        cursor: pointer;
+        margin-left: 10px;
+    }
+    button.danger {
+        background: #dc3545;
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        padding: 10px 15px;
+        cursor: pointer;
+        margin-left: 10px;
+    }
+    button:disabled {
+        opacity: 0.65;
+        cursor: not-allowed;
+    }
+</style>
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">Home</a>
+    &rsaquo; <a href="{% url 'admin:app_list' app_label='crm' %}">CRM</a>
+    &rsaquo; {{ title }}
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="sync-card">
+    <div class="sync-header">
+        <h1>{{ title }}</h1>
+        <p>Synchronize data between WooCommerce and your CRM system.</p>
+    </div>
+
+    <div class="sync-content">
+        {% if sync_type %}
+            <p>You are about to synchronize <strong>{{ sync_type }}</strong> from WooCommerce.</p>
+        {% else %}
+            <p>Please select what you want to synchronize:</p>
+            <div>
+                <label><input type="radio" name="sync_type" value="products" checked> Products</label>
+            </div>
+            <div>
+                <label><input type="radio" name="sync_type" value="customers"> Customers</label>
+            </div>
+            <div>
+                <label><input type="radio" name="sync_type" value="orders"> Orders</label>
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="sync-status info" id="syncStatus">
+        <p id="statusMessage">Ready to start synchronization...</p>
+        <div class="progress" id="progressContainer" style="display: none;">
+            <div class="progress-bar" id="progressBar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width: 0%;">
+                <span id="progressText">0%</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="sync-actions">
+        <button class="primary" id="startSync">Start Synchronization</button>
+        <button class="danger" id="stopSync" style="display: none;">Stop Synchronization</button>
+        <button class="secondary" id="backToAdmin">Back to Admin</button>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const startButton = document.getElementById('startSync');
+        const stopButton = document.getElementById('stopSync');
+        const backButton = document.getElementById('backToAdmin');
+        const statusDiv = document.getElementById('syncStatus');
+        const statusMessage = document.getElementById('statusMessage');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressBar = document.getElementById('progressBar');
+        const progressText = document.getElementById('progressText');
+        
+        let syncType = "{{ sync_type }}";
+        let syncInProgress = false;
+        let statusCheckInterval;
+        
+        if (!syncType) {
+            const radioButtons = document.querySelectorAll('input[name="sync_type"]');
+            for (const radio of radioButtons) {
+                radio.addEventListener('change', function() {
+                    syncType = this.value;
+                });
+            }
+            // Default to first option
+            syncType = document.querySelector('input[name="sync_type"]:checked').value;
+        }
+        
+        startButton.addEventListener('click', function() {
+            startSync();
+        });
+        
+        stopButton.addEventListener('click', function() {
+            stopSync();
+        });
+        
+        backButton.addEventListener('click', function() {
+            window.location.href = "{% url 'admin:index' %}";
+        });
+        
+        function startSync() {
+            syncInProgress = true;
+            startButton.disabled = true;
+            stopButton.style.display = 'inline-block';
+            statusDiv.style.display = 'block';
+            statusDiv.className = 'sync-status info';
+            statusMessage.textContent = 'Starting synchronization...';
+            
+            fetch("{% url 'sync_woocommerce_data' %}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({
+                    type: syncType
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                statusCheckInterval = setInterval(checkSyncStatus, 2000);
+            })
+            .catch(error => {
+                showError('Error starting sync: ' + error.message);
+                resetUI();
+            });
+        }
+        
+        function stopSync() {
+            fetch("{% url 'stop_sync' %}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                statusMessage.textContent = 'Stopping synchronization...';
+            })
+            .catch(error => {
+                showError('Error stopping sync: ' + error.message);
+            });
+        }
+        
+        function checkSyncStatus() {
+            fetch("{% url 'get_sync_status' %}")
+            .then(response => response.json())
+            .then(data => {
+                statusMessage.textContent = data.message;
+                
+                if (data.status === 'in_progress') {
+                    if (data.progress && data.progress.total > 0) {
+                        const percent = Math.round((data.progress.current / data.progress.total) * 100);
+                        progressContainer.style.display = 'block';
+                        progressBar.style.width = percent + '%';
+                        progressText.textContent = percent + '%';
+                    }
+                } else if (data.status === 'done' || data.status === 'success') {
+                    clearInterval(statusCheckInterval);
+                    showSuccess('Synchronization completed successfully!');
+                    resetUI();
+                } else if (data.status === 'error') {
+                    clearInterval(statusCheckInterval);
+                    showError('Error during synchronization: ' + data.message);
+                    resetUI();
+                } else if (data.status === 'stopped') {
+                    clearInterval(statusCheckInterval);
+                    statusDiv.className = 'sync-status info';
+                    statusMessage.textContent = 'Synchronization stopped by user.';
+                    resetUI();
+                }
+            })
+            .catch(error => {
+                clearInterval(statusCheckInterval);
+                showError('Error checking sync status: ' + error.message);
+                resetUI();
+            });
+        }
+        
+        function showSuccess(message) {
+            statusDiv.className = 'sync-status success';
+            statusMessage.textContent = message;
+        }
+        
+        function showError(message) {
+            statusDiv.className = 'sync-status error';
+            statusMessage.textContent = message;
+        }
+        
+        function resetUI() {
+            syncInProgress = false;
+            startButton.disabled = false;
+            stopButton.style.display = 'none';
+        }
+    });
+</script>
+{% endblock %}

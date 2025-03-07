@@ -41,6 +41,7 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
+    'crm.middleware.TokenRefreshMiddleware',  # Add token refresh middleware
 ]
 
 ROOT_URLCONF = 'doctorsstudio.urls'
@@ -49,8 +50,8 @@ TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
         'DIRS': [
-            os.path.join(BASE_DIR, 'crm/templates'),
             os.path.join(BASE_DIR, 'templates'),
+            os.path.join(BASE_DIR, 'crm', 'templates'),
         ],
         'APP_DIRS': True,
         'OPTIONS': {
@@ -70,7 +71,7 @@ WSGI_APPLICATION = 'doctorsstudio.wsgi.application'
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
 # Use SQLite for local development
-if DEBUG:
+if True:  # Switch back to SQLite
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
@@ -82,10 +83,10 @@ else:
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',
-            'NAME': os.getenv('DB_NAME', 'postgres'),
+            'NAME': 'doctorsstudio_crm',  # Use the exact database name
             'USER': os.getenv('DB_USER', 'postgres'),
             'PASSWORD': os.getenv('DB_PASSWORD', 'postgres'),
-            'HOST': os.getenv('DB_HOST', 'db'),
+            'HOST': 'localhost',  
             'PORT': os.getenv('DB_PORT', '5432'),
         }
     }
@@ -136,6 +137,47 @@ GOHIGHLEVEL_OAUTH = {
     'TOKEN_URL': 'https://services.leadconnectorhq.com/oauth/token',
     'API_BASE_URL': 'https://services.leadconnectorhq.com/v2',
     'SCOPE': 'contacts.readonly contacts.write',
+}
+
+# Logging configuration
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'level': 'DEBUG',
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+        'file': {
+            'level': 'DEBUG',
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(BASE_DIR, 'debug.log'),
+            'formatter': 'verbose',
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console', 'file'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+        'crm': {
+            'handlers': ['console', 'file'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+    },
 }
 
 # REST Framework settings

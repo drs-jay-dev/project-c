@@ -1,0 +1,266 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block title %}{{ title }} | {% trans 'DoctorsStudio CRM' %}{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    .dashboard-container {
+        margin: 20px;
+    }
+    .card {
+        background-color: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        margin-bottom: 24px;
+        padding: 24px;
+    }
+    .card-title {
+        border-bottom: 1px solid #eee;
+        font-size: 18px;
+        font-weight: 600;
+        margin-bottom: 20px;
+        padding-bottom: 12px;
+    }
+    .button {
+        background-color: #79aec8;
+        border: none;
+        border-radius: 4px;
+        color: white;
+        cursor: pointer;
+        font-size: 14px;
+        padding: 8px 16px;
+        text-decoration: none;
+    }
+    .button:hover {
+        background-color: #609ab6;
+    }
+    .button.danger {
+        background-color: #e74c3c;
+    }
+    .sync-table, .token-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .sync-table th, .sync-table td, .token-table th, .token-table td {
+        padding: 8px;
+        text-align: left;
+        border-bottom: 1px solid #eee;
+    }
+    .sync-status-badge, .token-status-badge {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+    }
+    .sync-status-badge.complete {
+        background-color: #2ecc71;
+        color: white;
+    }
+    .sync-status-badge.in-progress {
+        background-color: #3498db;
+        color: white;
+    }
+    .token-status-badge.valid {
+        background-color: #2ecc71;
+        color: white;
+    }
+    .token-status-badge.expired {
+        background-color: #e74c3c;
+        color: white;
+    }
+    .token-status-badge.expiring {
+        background-color: #f39c12;
+        color: white;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <div class="breadcrumbs">
+        <a href="{% url 'admin:index' %}">Home</a>
+        &rsaquo; <a href="{% url 'sync_dashboard' %}">Sync Dashboard</a>
+        &rsaquo; <a href="{% url 'system_status' %}">System Status</a>
+    </div>
+    <h1>{{ title }}</h1>
+    
+    <div class="card">
+        <h2 class="card-title">OAuth Tokens</h2>
+        <table class="token-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Location</th>
+                    <th>Expires At</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for token in tokens %}
+                <tr>
+                    <td>{{ token.id }}</td>
+                    <td>{{ token.location_name }} ({{ token.location_id }})</td>
+                    <td>{{ token.expires_at|date:"Y-m-d H:i:s" }}</td>
+                    <td>
+                        {% if token.status == "Valid" %}
+                        <span class="token-status-badge valid">Valid</span>
+                        {% elif token.status == "Expired" %}
+                        <span class="token-status-badge expired">Expired</span>
+                        {% else %}
+                        <span class="token-status-badge expiring">Expiring Soon</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{% url 'ghl_oauth_refresh' token.id %}" class="button">Refresh Token</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5">No OAuth tokens found. <a href="{% url 'ghl_oauth_authorize' %}">Connect to GoHighLevel</a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <div class="card">
+        <h2 class="card-title">Start New Sync</h2>
+        <form id="start-sync-form" action="{% url 'start_sync' %}" method="post">
+            {% csrf_token %}
+            <div style="margin-bottom: 16px;">
+                <label for="sync_type">Sync Type:</label>
+                <select id="sync_type" name="sync_type" required style="margin-left: 8px;">
+                    <option value="ghl_contacts">GoHighLevel Contacts</option>
+                </select>
+            </div>
+            
+            <div style="margin-bottom: 16px;">
+                <label for="location_id">Location:</label>
+                <select id="location_id" name="location_id" required style="margin-left: 8px;">
+                    {% for token in tokens %}
+                    <option value="{{ token.location_id }}">{{ token.location_name }} ({{ token.location_id }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div style="margin-bottom: 16px;">
+                <input type="checkbox" id="chunked" name="chunked" value="true">
+                <label for="chunked">Chunked Sync</label>
+                
+                <div id="chunk-options" style="margin-left: 24px; margin-top: 8px; display: none;">
+                    <div style="margin-bottom: 8px;">
+                        <label for="chunk_size">Chunk Size:</label>
+                        <input type="number" id="chunk_size" name="chunk_size" value="10" min="1" max="100" style="margin-left: 8px; width: 60px;">
+                    </div>
+                    <div>
+                        <label for="chunk_delay">Chunk Delay (seconds):</label>
+                        <input type="number" id="chunk_delay" name="chunk_delay" value="60" min="5" style="margin-left: 8px; width: 60px;">
+                    </div>
+                </div>
+            </div>
+            
+            <div style="margin-bottom: 16px;">
+                <input type="checkbox" id="incremental" name="incremental" value="true">
+                <label for="incremental">Incremental Sync</label>
+            </div>
+            
+            <button type="submit" class="button">Start Sync</button>
+        </form>
+    </div>
+    
+    <div class="card">
+        <h2 class="card-title">Recent Sync Operations</h2>
+        <table class="sync-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Type</th>
+                    <th>Location</th>
+                    <th>Last Page</th>
+                    <th>Success</th>
+                    <th>Errors</th>
+                    <th>Last Sync Time</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for sync in sync_states %}
+                <tr>
+                    <td>{{ sync.id }}</td>
+                    <td>{{ sync.sync_type }}</td>
+                    <td>{{ sync.location_id }}</td>
+                    <td>{{ sync.last_page_processed }}</td>
+                    <td>{{ sync.success_count }}</td>
+                    <td>{{ sync.error_count }}</td>
+                    <td>{{ sync.last_sync_time|date:"Y-m-d H:i:s" }}</td>
+                    <td>
+                        {% if sync.is_complete %}
+                        <span class="sync-status-badge complete">Complete</span>
+                        {% else %}
+                        <span class="sync-status-badge in-progress">In Progress</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{% url 'sync_detail_view' sync.id %}" class="button">View</a>
+                        {% if not sync.is_complete %}
+                        <form style="display: inline-block;" action="{% url 'cancel_sync' sync.id %}" method="post">
+                            {% csrf_token %}
+                            <button type="submit" class="button danger">Cancel</button>
+                        </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="9">No sync operations found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <div class="card">
+        <h2 class="card-title">Recent Sync Logs</h2>
+        <table class="sync-table">
+            <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    <th>Message</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in sync_logs %}
+                <tr>
+                    <td>{{ log.timestamp|date:"Y-m-d H:i:s" }}</td>
+                    <td>{{ log.message }}</td>
+                    <td>{{ log.status }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="3">No logs found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extrajs %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Toggle chunk options visibility
+    const chunkedCheckbox = document.getElementById('chunked');
+    const chunkOptions = document.getElementById('chunk-options');
+    
+    chunkedCheckbox.addEventListener('change', function() {
+        chunkOptions.style.display = this.checked ? 'block' : 'none';
+    });
+});
+</script>
+{% endblock %}

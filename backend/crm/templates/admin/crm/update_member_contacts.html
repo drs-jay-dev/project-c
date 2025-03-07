@@ -1,0 +1,287 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}Update Member Contacts{% endblock %}
+
+{% block extrastyle %}
+<style>
+    .form-container {
+        max-width: 800px;
+        margin: 20px auto;
+        padding: 20px;
+        background-color: #fff;
+        border-radius: 5px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    }
+    
+    .form-group {
+        margin-bottom: 20px;
+    }
+    
+    label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: bold;
+    }
+    
+    textarea {
+        width: 100%;
+        min-height: 150px;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-family: monospace;
+    }
+    
+    button {
+        background-color: #79aec8;
+        color: #fff;
+        border: none;
+        padding: 10px 15px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: bold;
+    }
+    
+    button:hover {
+        background-color: #609ab6;
+    }
+    
+    .alert {
+        padding: 15px;
+        margin-bottom: 20px;
+        border: 1px solid transparent;
+        border-radius: 4px;
+    }
+    
+    .alert-info {
+        color: #31708f;
+        background-color: #d9edf7;
+        border-color: #bce8f1;
+    }
+    
+    .alert-success {
+        color: #3c763d;
+        background-color: #dff0d8;
+        border-color: #d6e9c6;
+    }
+    
+    .alert-warning {
+        color: #8a6d3b;
+        background-color: #fcf8e3;
+        border-color: #faebcc;
+    }
+    
+    .alert-danger {
+        color: #a94442;
+        background-color: #f2dede;
+        border-color: #ebccd1;
+    }
+    
+    .card {
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        margin-bottom: 20px;
+    }
+    
+    .card-header {
+        padding: 10px 15px;
+        background-color: #f5f5f5;
+        border-bottom: 1px solid #ddd;
+    }
+    
+    .bg-success {
+        background-color: #28a745 !important;
+    }
+    
+    .text-white {
+        color: #fff !important;
+    }
+    
+    .card-body {
+        padding: 15px;
+    }
+    
+    .table {
+        width: 100%;
+        max-width: 100%;
+        margin-bottom: 1rem;
+        background-color: transparent;
+        border-collapse: collapse;
+    }
+    
+    .table th,
+    .table td {
+        padding: 0.75rem;
+        vertical-align: top;
+        border-top: 1px solid #dee2e6;
+    }
+    
+    .table thead th {
+        vertical-align: bottom;
+        border-bottom: 2px solid #dee2e6;
+    }
+    
+    .table-striped tbody tr:nth-of-type(odd) {
+        background-color: rgba(0, 0, 0, 0.05);
+    }
+    
+    .text-success {
+        color: #28a745 !important;
+    }
+    
+    .text-danger {
+        color: #dc3545 !important;
+    }
+    
+    #loading {
+        display: none;
+        text-align: center;
+        margin: 20px 0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="form-container">
+    <h1>Update Member Contacts</h1>
+    <p>Use this form to update contacts that have the "member" role instead of "customer" role.</p>
+    
+    <div class="form-group">
+        <label for="emails">Email Addresses (one per line):</label>
+        <textarea id="emails" placeholder="Enter email addresses, one per line"></textarea>
+    </div>
+    
+    <button id="submitBtn" type="button">Update Contacts</button>
+    
+    <div id="loading">
+        <p>Processing contacts... Please wait.</p>
+        <img src="{% static 'admin/img/icon-yes.svg' %}" alt="Loading" width="20" height="20">
+    </div>
+    
+    <div id="results"></div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const submitBtn = document.getElementById('submitBtn');
+        const emailsTextarea = document.getElementById('emails');
+        const resultsDiv = document.getElementById('results');
+        const loadingDiv = document.getElementById('loading');
+        
+        submitBtn.addEventListener('click', function() {
+            // Get emails from textarea
+            const emailsText = emailsTextarea.value.trim();
+            if (!emailsText) {
+                showResult('Please enter at least one email address.', 'error');
+                return;
+            }
+            
+            // Split by newline and filter empty lines
+            const emails = emailsText.split('\n')
+                .map(email => email.trim())
+                .filter(email => email.length > 0);
+            
+            if (emails.length === 0) {
+                showResult('Please enter at least one valid email address.', 'error');
+                return;
+            }
+            
+            // Show loading and processing message
+            loadingDiv.style.display = 'block';
+            resultsDiv.innerHTML = '<div class="alert alert-info">Processing contacts... Please wait. This may take a minute for multiple contacts.</div>';
+            
+            // Set a timeout to show a warning if it's taking too long
+            const timeoutWarning = setTimeout(function() {
+                resultsDiv.innerHTML = 
+                    '<div class="alert alert-warning">' +
+                    '<p><strong>Still processing...</strong></p>' +
+                    '<p>The request is taking longer than expected. This could be due to:</p>' +
+                    '<ul>' +
+                    '<li>A large number of contacts being processed</li>' +
+                    '<li>Slow response from the WooCommerce API</li>' +
+                    '</ul>' +
+                    '<p>You can try with fewer emails or check the server logs for more information.</p>' +
+                    '</div>';
+            }, 15000); // Show warning after 15 seconds
+            
+            // Make API request
+            fetch('/api/sync/update-member-contacts/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({ emails: emails })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        throw new Error(data.error || data.message || 'Server error');
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                clearTimeout(timeoutWarning);
+                loadingDiv.style.display = 'none';
+                
+                let resultsHtml = '<div class="card"><div class="card-header bg-success text-white">Results</div><div class="card-body">';
+                resultsHtml += '<p>Processed ' + data.results.length + ' contacts</p>';
+                
+                // Create a table for the results
+                resultsHtml += '<table class="table table-striped">';
+                resultsHtml += '<thead><tr><th>Email</th><th>Role</th><th>Status</th><th>Message</th></tr></thead>';
+                resultsHtml += '<tbody>';
+                
+                data.results.forEach(function(result) {
+                    const statusClass = result.status === 'success' ? 'text-success' : 'text-danger';
+                    resultsHtml += '<tr>';
+                    resultsHtml += '<td>' + result.email + '</td>';
+                    resultsHtml += '<td>' + (result.role || 'N/A') + '</td>';
+                    resultsHtml += '<td class="' + statusClass + '">' + result.status + '</td>';
+                    resultsHtml += '<td>' + result.message + '</td>';
+                    resultsHtml += '</tr>';
+                });
+                
+                resultsHtml += '</tbody></table></div></div>';
+                
+                resultsDiv.innerHTML = resultsHtml;
+            })
+            .catch(error => {
+                clearTimeout(timeoutWarning);
+                loadingDiv.style.display = 'none';
+                
+                resultsDiv.innerHTML = 
+                    '<div class="alert alert-danger">' +
+                    '<h4>Error</h4>' +
+                    '<p>' + error.message + '</p>' +
+                    '<p>Try with fewer emails or check the server logs for more information.</p>' +
+                    '</div>';
+            });
+        });
+        
+        function showResult(message, type) {
+            const alertClass = type === 'error' ? 'alert-danger' : 
+                              type === 'success' ? 'alert-success' : 'alert-info';
+            
+            resultsDiv.innerHTML = '<div class="alert ' + alertClass + '">' + message + '</div>';
+        }
+        
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+    });
+</script>
+{% endblock %}

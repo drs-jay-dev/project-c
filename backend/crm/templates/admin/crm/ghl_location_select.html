@@ -1,0 +1,81 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block extrastyle %}
+<style>
+    .location-form {
+        max-width: 600px;
+        margin: 20px auto;
+        padding: 20px;
+        background-color: #f9f9f9;
+        border-radius: 5px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    .form-row {
+        margin-bottom: 15px;
+    }
+    .form-row label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: bold;
+    }
+    .form-row input {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+    .submit-row {
+        margin-top: 20px;
+    }
+    .submit-row input {
+        background-color: #417690;
+        color: white;
+        border: none;
+        padding: 10px 15px;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+    .help-text {
+        color: #666;
+        font-size: 0.9em;
+        margin-top: 5px;
+    }
+    .error-message {
+        color: #ba2121;
+        margin-bottom: 15px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="location-form">
+    <h1>{{ title }}</h1>
+    
+    <p>The GoHighLevel OAuth flow did not provide a location ID. Please enter your GoHighLevel location ID below:</p>
+    
+    {% if error_message %}
+    <div class="error-message">
+        {{ error_message }}
+    </div>
+    {% endif %}
+    
+    <form method="post" action="{% url 'ghl_oauth_location_submit' %}">
+        {% csrf_token %}
+        <input type="hidden" name="code" value="{{ code }}">
+        <input type="hidden" name="state" value="{{ state }}">
+        
+        <div class="form-row">
+            <label for="location_id">Location ID:</label>
+            <input type="text" id="location_id" name="location_id" required>
+            <p class="help-text">
+                You can find your location ID in your GoHighLevel dashboard under Settings > API & Webhooks.
+            </p>
+        </div>
+        
+        <div class="submit-row">
+            <input type="submit" value="Continue">
+        </div>
+    </form>
+</div>
+{% endblock %}
