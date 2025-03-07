@@ -5,7 +5,7 @@ from django.urls import path, reverse
 from django.http import HttpResponseRedirect
 from django.shortcuts import render, redirect
 from django.utils.translation import gettext_lazy as _
-from .models import Contact, Order, Product, OAuth2Token, TokenRequestLog, SystemLog
+from .models import Contact, Order, Product, OAuth2Token, TokenRequestLog, SystemLog, Appointment, AppointmentWebhookLog
 from .admin_site import crm_admin_site
 from .ghl_oauth import get_authorization_url
 from django.contrib import messages
@@ -488,6 +488,20 @@ class SystemLogAdmin(admin.ModelAdmin):
         # Only allow adding logs programmatically
         return False
 
+class AppointmentAdmin(admin.ModelAdmin):
+    list_display = ['title', 'contact', 'start_time', 'end_time', 'status', 'provider', 'service', 'source']
+    list_filter = ['status', 'source', 'provider', 'start_time']
+    search_fields = ['title', 'notes', 'contact__first_name', 'contact__last_name', 'contact__email', 'provider', 'service']
+    date_hierarchy = 'start_time'
+    raw_id_fields = ['contact']
+
+class AppointmentWebhookLogAdmin(admin.ModelAdmin):
+    list_display = ['source', 'status', 'processed', 'created_at']
+    list_filter = ['source', 'status', 'processed']
+    readonly_fields = ['id', 'source', 'headers', 'payload', 'created_at']
+    search_fields = ['source', 'error_message']
+    date_hierarchy = 'created_at'
+
 # Register models with the admin site
 admin.site.register(Contact, ContactAdmin)
 admin.site.register(Order, OrderAdmin)
@@ -495,6 +509,8 @@ admin.site.register(Product, ProductAdmin)
 admin.site.register(OAuth2Token, OAuth2TokenAdmin)
 admin.site.register(TokenRequestLog, TokenRequestLogAdmin)
 admin.site.register(SystemLog, SystemLogAdmin)
+admin.site.register(Appointment, AppointmentAdmin)
+admin.site.register(AppointmentWebhookLog, AppointmentWebhookLogAdmin)
 
 # Register with custom admin site
 crm_admin_site.register(Contact, ContactAdmin)
@@ -503,3 +519,5 @@ crm_admin_site.register(Product, ProductAdmin)
 crm_admin_site.register(OAuth2Token, OAuth2TokenAdmin)
 crm_admin_site.register(TokenRequestLog, TokenRequestLogAdmin)
 crm_admin_site.register(SystemLog, SystemLogAdmin)
+crm_admin_site.register(Appointment, AppointmentAdmin)
+crm_admin_site.register(AppointmentWebhookLog, AppointmentWebhookLogAdmin)

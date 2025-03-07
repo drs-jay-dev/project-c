@@ -198,3 +198,57 @@ class SyncState(models.Model):
     
     def __str__(self):
         return f"{self.get_sync_type_display()} - {self.last_sync_time}"
+
+class Appointment(models.Model):
+    """
+    Model to store appointment data received from webhooks.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    external_id = models.CharField(max_length=100, blank=True, null=True)
+    contact = models.ForeignKey(Contact, on_delete=models.CASCADE, related_name='appointments', null=True, blank=True)
+    title = models.CharField(max_length=255)
+    start_time = models.DateTimeField()
+    end_time = models.DateTimeField()
+    status = models.CharField(max_length=50, default='scheduled')
+    notes = models.TextField(blank=True)
+    location = models.CharField(max_length=255, blank=True)
+    provider = models.CharField(max_length=100, blank=True)
+    service = models.CharField(max_length=255, blank=True)
+    source = models.CharField(max_length=50, default='webhook')
+    raw_data = models.JSONField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.title} - {self.start_time.strftime('%Y-%m-%d %H:%M')}"
+
+    class Meta:
+        ordering = ['-start_time']
+        verbose_name = 'Appointment'
+        verbose_name_plural = 'Appointments'
+
+class AppointmentWebhookLog(models.Model):
+    """
+    Model to log webhook requests for appointments.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    source = models.CharField(max_length=50)
+    headers = models.JSONField()
+    payload = models.JSONField()
+    status = models.CharField(max_length=20, choices=[
+        ('success', 'Success'),
+        ('error', 'Error'),
+        ('pending', 'Pending'),
+    ], default='pending')
+    error_message = models.TextField(blank=True)
+    processed = models.BooleanField(default=False)
+    created_appointment = models.ForeignKey(Appointment, on_delete=models.SET_NULL, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Webhook {self.source} - {self.created_at.strftime('%Y-%m-%d %H:%M:%S')}"
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Appointment Webhook Log'
+        verbose_name_plural = 'Appointment Webhook Logs'

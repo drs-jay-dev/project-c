@@ -36,4 +36,7 @@ urlpatterns = [
     
     # System status
     path('system/status/', views.system_status, name='system_status'),
+    
+    # Appointment Dashboard URLs
+    path('api/webhooks/appointments/', views.appointment_webhook, name='appointment_webhook'),
 ]

@@ -5,7 +5,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.pagination import PageNumberPagination
 from rest_framework import status
-from .models import Contact, Order, Product, OAuth2Token, TokenRequestLog, SystemLog, SyncState
+from .models import Contact, Order, Product, OAuth2Token, TokenRequestLog, SystemLog, SyncState, Appointment, AppointmentWebhookLog
 from .serializers import ContactSerializer, OrderSerializer, ProductSerializer
 from .woocommerce import WooCommerceAPI
 from .woo_sync import sync_woocommerce_contacts, sync_woocommerce_orders, sync_woocommerce_products
@@ -1141,3 +1141,111 @@ def system_status(request):
         'contacts_last_24h': contacts_last_24h,
         'contacts_updated_24h': contacts_updated_24h,
     })
+
+# Master Appointment Dashboard Webhook Views
+@api_view(['POST'])
+def appointment_webhook(request):
+    """
+    Endpoint to receive appointment data from external webhooks.
+    """
+    try:
+        # Log the incoming webhook
+        webhook_log = AppointmentWebhookLog.objects.create(
+            source=request.GET.get('source', 'unknown'),
+            headers=dict(request.headers),
+            payload=request.data,
+            status='pending'
+        )
+        
+        logger.info(f"Received appointment webhook: {webhook_log.id}")
+        
+        # Process the webhook based on the source
+        source = webhook_log.source.lower()
+        
+        if source == 'gohighlevel' or source == 'ghl':
+            # Use the specialized GoHighLevel processor
+            from .ghl_processor import process_ghl_appointment_webhook
+            appointment = process_ghl_appointment_webhook(webhook_log)
+        else:
+            # Use the generic processor for other sources
+            appointment = process_appointment_webhook(webhook_log)
+        
+        return Response({
+            "status": "success",
+            "message": "Webhook received successfully",
+            "webhook_id": str(webhook_log.id)
+        }, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        logger.error(f"Error processing appointment webhook: {str(e)}")
+        return Response({
+            "status": "error",
+            "message": f"Error processing webhook: {str(e)}"
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+def process_appointment_webhook(webhook_log):
+    """
+    Process the appointment webhook and create or update appointment records.
+    """
+    try:
+        payload = webhook_log.payload
+        
+        # Extract appointment data from payload
+        # This will need to be adapted based on the actual payload structure
+        appointment_data = {
+            'external_id': payload.get('appointment_id') or payload.get('id'),
+            'title': payload.get('title', 'Appointment'),
+            'start_time': payload.get('start_time') or payload.get('start'),
+            'end_time': payload.get('end_time') or payload.get('end'),
+            'status': payload.get('status', 'scheduled'),
+            'notes': payload.get('notes', ''),
+            'location': payload.get('location', ''),
+            'provider': payload.get('provider', ''),
+            'service': payload.get('service', ''),
+            'source': webhook_log.source,
+            'raw_data': payload
+        }
+        
+        # Try to find an existing contact
+        contact = None
+        contact_email = payload.get('email')
+        contact_phone = payload.get('phone')
+        
+        if contact_email:
+            contact = Contact.objects.filter(email=contact_email).first()
+        
+        if not contact and contact_phone:
+            contact = Contact.objects.filter(phone=contact_phone).first()
+        
+        if contact:
+            appointment_data['contact'] = contact
+        
+        # Create or update the appointment
+        if appointment_data.get('external_id'):
+            appointment, created = Appointment.objects.update_or_create(
+                external_id=appointment_data['external_id'],
+                defaults=appointment_data
+            )
+        else:
+            appointment = Appointment.objects.create(**appointment_data)
+            created = True
+        
+        # Update the webhook log
+        webhook_log.status = 'success'
+        webhook_log.processed = True
+        webhook_log.created_appointment = appointment
+        webhook_log.save()
+        
+        logger.info(f"{'Created' if created else 'Updated'} appointment: {appointment.id}")
+        
+        return appointment
+        
+    except Exception as e:
+        logger.error(f"Error processing webhook {webhook_log.id}: {str(e)}")
+        
+        # Update the webhook log with error information
+        webhook_log.status = 'error'
+        webhook_log.error_message = str(e)
+        webhook_log.save()
+        
+        return None
